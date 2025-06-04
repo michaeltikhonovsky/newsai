@@ -1,102 +1,197 @@
-import Image from "next/image";
+import { Button } from "@/components/ui/button";
+import { IoVideocamOutline } from "react-icons/io5";
 
 export default function Home() {
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div
+      className="min-h-screen flex flex-col"
+      style={{ background: "var(--background)", color: "var(--foreground)" }}
+    >
+      {/* Header */}
+      <header className="border-b border-gray-800 py-4">
+        <div className="container-custom flex justify-between items-center">
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            {" "}
+            <IoVideocamOutline style={{ height: 32, width: 32 }} />
+            NewsAI
+          </h1>
+          <Button className="hover:text-accent transition-colors">
+            Sign In
+          </Button>
+        </div>
+      </header>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+      {/* Main Section */}
+      <main className="flex-1">
+        <div className="container-custom grid grid-cols-1 md:grid-cols-2 gap-12 py-16 md:py-24">
+          <div className="flex flex-col justify-center">
+            <div className="space-y-6">
+              <div>
+                <div className="header-text mb-1">
+                  GENERATE <br />
+                  NEWS CLIPS <br />
+                  WITH AI
+                </div>
+              </div>
+
+              <p className="text-lg max-w-md" style={{ color: "#AAAAAA" }}>
+                {">"} Create realistic news broadcasts with AIpowered lipsync
+                technology.
+              </p>
+
+              <Button className="btn-primary mt-4 w-fit">
+                $ Start Creating
+              </Button>
+            </div>
+          </div>
+
+          {/* Video Demo */}
+          <div className="flex items-center justify-center">
+            <div
+              className="relative w-full max-w-lg aspect-video rounded-lg border border-gray-800 flex flex-col items-center justify-center"
+              style={{ background: "#1A1A1A" }}
+            >
+              <div className="text-center">
+                <div className="flex justify-center mb-4">
+                  <IoVideocamOutline style={{ height: 48, width: 48 }} />
+                </div>
+                <h3 className="text-xl font-bold">LIVE DEMO</h3>
+                <p className="mt-2" style={{ color: "#AAAAAA" }}>
+                  Click to play sample
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Features Section */}
+        <div className="py-16" style={{ background: "#1A1A1A" }}>
+          <div className="container-custom">
+            <h2 className="text-3xl font-bold mb-12 text-center">
+              &lt;Features/&gt;
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {/* Feature 1 */}
+              <div
+                className="p-6 rounded-lg border border-gray-800"
+                style={{ background: "#0F0F0F" }}
+              >
+                <div
+                  className="mb-4 inline-block p-3 rounded-lg"
+                  style={{ background: "#1A1A1A" }}
+                >
+                  <svg
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M12 16C14.2091 16 16 14.2091 16 12C16 9.79086 14.2091 8 12 8C9.79086 8 8 9.79086 8 12C8 14.2091 9.79086 16 12 16Z"
+                      stroke="white"
+                      strokeWidth="1.5"
+                    />
+                    <path
+                      d="M3 12C3 12 6 5 12 5C18 5 21 12 21 12C21 12 18 19 12 19C6 19 3 12 3 12Z"
+                      stroke="white"
+                      strokeWidth="1.5"
+                    />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold mb-2">
+                  {">"} AI-Powered Lipsync
+                </h3>
+                <p style={{ color: "#AAAAAA" }}>
+                  Perfect synchronization between audio and video for realistic
+                  news presentations.
+                </p>
+              </div>
+
+              {/* Feature 2 */}
+              <div
+                className="p-6 rounded-lg border border-gray-800"
+                style={{ background: "#0F0F0F" }}
+              >
+                <div
+                  className="mb-4 inline-block p-3 rounded-lg"
+                  style={{ background: "#1A1A1A" }}
+                >
+                  <svg
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M5 12L10 17L20 7"
+                      stroke="white"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold mb-2">{">"} High Quality</h3>
+                <p style={{ color: "#AAAAAA" }}>
+                  Crystal clear 4K video output with professional-grade audio
+                  processing.
+                </p>
+              </div>
+
+              {/* Feature 3 */}
+              <div
+                className="p-6 rounded-lg border border-gray-800"
+                style={{ background: "#0F0F0F" }}
+              >
+                <div
+                  className="mb-4 inline-block p-3 rounded-lg"
+                  style={{ background: "#1A1A1A" }}
+                >
+                  <svg
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M12 6V12L16 14"
+                      stroke="white"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <circle
+                      cx="12"
+                      cy="12"
+                      r="9"
+                      stroke="white"
+                      strokeWidth="1.5"
+                    />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold mb-2">{">"} Fast Rendering</h3>
+                <p style={{ color: "#AAAAAA" }}>
+                  Generate news clips in minutes, not hours, with our optimized
+                  AI pipeline.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+
+      {/* Footer */}
+      <footer className="border-t border-gray-800 py-6">
+        <div
+          className="container-custom text-center"
+          style={{ color: "#AAAAAA" }}
         >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
+          <p>© 2025 NewsAI. All rights reserved.</p>
+        </div>
       </footer>
     </div>
   );
