@@ -1,14 +1,38 @@
+"use client";
+
 import { Button } from "@/components/ui/button";
 import { IoVideocamOutline } from "react-icons/io5";
+import { motion } from "framer-motion";
 
 export default function Home() {
+  // Animation variants
+  const fadeIn = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0 },
+  };
+
+  const staggerContainer = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.2,
+      },
+    },
+  };
+
   return (
     <div
       className="min-h-screen flex flex-col"
       style={{ background: "var(--background)", color: "var(--foreground)" }}
     >
       {/* Header */}
-      <header className="border-b border-gray-800 py-4">
+      <motion.header
+        className="border-b border-gray-800 py-4"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
         <div className="container-custom flex justify-between items-center">
           <h1 className="text-2xl font-bold flex items-center gap-2">
             {" "}
@@ -19,34 +43,51 @@ export default function Home() {
             Sign In
           </Button>
         </div>
-      </header>
+      </motion.header>
 
       {/* Main Section */}
       <main className="flex-1">
         <div className="container-custom grid grid-cols-1 md:grid-cols-2 gap-12 py-16 md:py-24">
-          <div className="flex flex-col justify-center">
+          <motion.div
+            className="flex flex-col justify-center"
+            initial="hidden"
+            animate="visible"
+            variants={staggerContainer}
+          >
             <div className="space-y-6">
-              <div>
+              <motion.div variants={fadeIn} transition={{ duration: 0.6 }}>
                 <div className="header-text mb-1">
                   GENERATE <br />
                   NEWS CLIPS <br />
                   WITH AI
                 </div>
-              </div>
+              </motion.div>
 
-              <p className="text-lg max-w-md" style={{ color: "#AAAAAA" }}>
+              <motion.p
+                className="text-lg max-w-md"
+                style={{ color: "#AAAAAA" }}
+                variants={fadeIn}
+                transition={{ duration: 0.6 }}
+              >
                 {">"} Create realistic news broadcasts with AIpowered lipsync
                 technology.
-              </p>
+              </motion.p>
 
-              <Button className="btn-primary mt-4 w-fit">
-                $ Start Creating
-              </Button>
+              <motion.div variants={fadeIn} transition={{ duration: 0.6 }}>
+                <Button className="btn-primary mt-4 w-fit">
+                  $ Start Creating
+                </Button>
+              </motion.div>
             </div>
-          </div>
+          </motion.div>
 
           {/* Video Demo */}
-          <div className="flex items-center justify-center">
+          <motion.div
+            className="flex items-center justify-center"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.7 }}
+          >
             <div
               className="relative w-full max-w-lg aspect-video rounded-lg border border-gray-800 flex flex-col items-center justify-center"
               style={{ background: "#1A1A1A" }}
@@ -61,21 +102,45 @@ export default function Home() {
                 </p>
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
 
         {/* Features Section */}
         <div className="py-16" style={{ background: "#1A1A1A" }}>
           <div className="container-custom">
-            <h2 className="text-3xl font-bold mb-12 text-center">
+            <motion.h2
+              className="text-3xl font-bold mb-12 text-center"
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5 }}
+            >
               &lt;Features/&gt;
-            </h2>
+            </motion.h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <motion.div
+              className="grid grid-cols-1 md:grid-cols-3 gap-8"
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              variants={{
+                hidden: { opacity: 0 },
+                visible: {
+                  opacity: 1,
+                  transition: {
+                    staggerChildren: 0.3,
+                  },
+                },
+              }}
+            >
               {/* Feature 1 */}
-              <div
+              <motion.div
                 className="p-6 rounded-lg border border-gray-800"
                 style={{ background: "#0F0F0F" }}
+                variants={{
+                  hidden: { opacity: 0, y: 50 },
+                  visible: { opacity: 1, y: 0, transition: { duration: 0.6 } },
+                }}
               >
                 <div
                   className="mb-4 inline-block p-3 rounded-lg"
@@ -101,18 +166,22 @@ export default function Home() {
                   </svg>
                 </div>
                 <h3 className="text-xl font-bold mb-2">
-                  {">"} AI-Powered Lipsync
+                  {">"} AI powered Lipsync
                 </h3>
                 <p style={{ color: "#AAAAAA" }}>
                   Perfect synchronization between audio and video for realistic
                   news presentations.
                 </p>
-              </div>
+              </motion.div>
 
               {/* Feature 2 */}
-              <div
+              <motion.div
                 className="p-6 rounded-lg border border-gray-800"
                 style={{ background: "#0F0F0F" }}
+                variants={{
+                  hidden: { opacity: 0, y: 50 },
+                  visible: { opacity: 1, y: 0, transition: { duration: 0.6 } },
+                }}
               >
                 <div
                   className="mb-4 inline-block p-3 rounded-lg"
@@ -139,12 +208,16 @@ export default function Home() {
                   Crystal clear 4K video output with professional-grade audio
                   processing.
                 </p>
-              </div>
+              </motion.div>
 
               {/* Feature 3 */}
-              <div
+              <motion.div
                 className="p-6 rounded-lg border border-gray-800"
                 style={{ background: "#0F0F0F" }}
+                variants={{
+                  hidden: { opacity: 0, y: 50 },
+                  visible: { opacity: 1, y: 0, transition: { duration: 0.6 } },
+                }}
               >
                 <div
                   className="mb-4 inline-block p-3 rounded-lg"
@@ -178,21 +251,27 @@ export default function Home() {
                   Generate news clips in minutes, not hours, with our optimized
                   AI pipeline.
                 </p>
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
           </div>
         </div>
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-gray-800 py-6">
+      <motion.footer
+        className="border-t border-gray-800 py-6"
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.5 }}
+      >
         <div
           className="container-custom text-center"
           style={{ color: "#AAAAAA" }}
         >
           <p>© 2025 NewsAI. All rights reserved.</p>
         </div>
-      </footer>
+      </motion.footer>
     </div>
   );
 }
