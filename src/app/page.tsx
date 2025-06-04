@@ -69,7 +69,7 @@ export default function Home() {
                 variants={fadeIn}
                 transition={{ duration: 0.6 }}
               >
-                {">"} Create realistic news broadcasts with AIpowered lipsync
+                {">"} Create realistic news broadcasts with AI powered lipsync
                 technology.
               </motion.p>
 
