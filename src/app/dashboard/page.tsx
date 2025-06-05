@@ -93,7 +93,7 @@ export default function Dashboard() {
               </div>
               <h3 className="text-xl font-bold mb-2">{">"} New Project</h3>
               <p style={{ color: "#AAAAAA" }} className="mb-6">
-                Start creating a new news clip from scratch.
+                Start creating a news clip from scratch.
               </p>
               <Button className="btn-primary">Create New Project</Button>
             </div>

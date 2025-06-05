@@ -71,7 +71,7 @@ export default function Home() {
                 variants={fadeIn}
                 transition={{ duration: 0.6 }}
               >
-                {">"} Create realistic news broadcasts with AI powered lipsync
+                {">"} Create realistic news broadcasts with our lipsync
                 technology.
               </motion.p>
 
@@ -254,7 +254,7 @@ export default function Home() {
                 <h3 className="text-xl font-bold mb-2">{">"} Fast Rendering</h3>
                 <p style={{ color: "#AAAAAA" }}>
                   Generate news clips in minutes, not hours, with our optimized
-                  AI pipeline.
+                  pipeline.
                 </p>
               </motion.div>
             </motion.div>
