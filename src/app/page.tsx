@@ -3,8 +3,18 @@
 import { Button } from "@/components/ui/button";
 import { IoVideocamOutline } from "react-icons/io5";
 import { motion } from "framer-motion";
+import { useState } from "react";
+import { AuthDialog } from "@/components/auth/AuthDialog";
+import { Dialog, DialogTrigger } from "@/components/ui/dialog";
+import { Navbar } from "@/components/Navbar";
+import { useUser } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
+  const { isLoaded, isSignedIn } = useUser();
+  const router = useRouter();
+  const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
+
   // Animation variants
   const fadeIn = {
     hidden: { opacity: 0, y: 20 },
@@ -21,29 +31,21 @@ export default function Home() {
     },
   };
 
+  const handleCreateClick = () => {
+    if (isLoaded && isSignedIn) {
+      router.push("/dashboard");
+    } else {
+      setIsAuthDialogOpen(true);
+    }
+  };
+
   return (
     <div
       className="min-h-screen flex flex-col"
       style={{ background: "var(--background)", color: "var(--foreground)" }}
     >
       {/* Header */}
-      <motion.header
-        className="border-b border-gray-800 py-4"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <div className="container-custom flex justify-between items-center">
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            {" "}
-            <IoVideocamOutline style={{ height: 32, width: 32 }} />
-            NewsAI
-          </h1>
-          <Button className="hover:text-accent transition-colors">
-            Sign In
-          </Button>
-        </div>
-      </motion.header>
+      <Navbar />
 
       {/* Main Section */}
       <main className="flex-1">
@@ -74,7 +76,10 @@ export default function Home() {
               </motion.p>
 
               <motion.div variants={fadeIn} transition={{ duration: 0.6 }}>
-                <Button className="btn-primary mt-4 w-fit">
+                <Button
+                  className="btn-primary mt-4 w-fit"
+                  onClick={handleCreateClick}
+                >
                   $ Start Creating
                 </Button>
               </motion.div>
@@ -205,7 +210,7 @@ export default function Home() {
                 </div>
                 <h3 className="text-xl font-bold mb-2">{">"} High Quality</h3>
                 <p style={{ color: "#AAAAAA" }}>
-                  Crystal clear 4K video output with professional-grade audio
+                  Crystal clear 4K video output with professional grade audio
                   processing.
                 </p>
               </motion.div>
