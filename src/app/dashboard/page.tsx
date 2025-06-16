@@ -50,6 +50,10 @@ export default function Dashboard() {
     }
   };
 
+  const handleCreateProject = () => {
+    router.push("/project/config");
+  };
+
   if (!isLoaded || !isSignedIn) {
     return null;
   }
@@ -95,7 +99,9 @@ export default function Dashboard() {
               <p style={{ color: "#AAAAAA" }} className="mb-6">
                 Start creating a news clip from scratch.
               </p>
-              <Button className="btn-primary">Create New Project</Button>
+              <Button className="btn-primary" onClick={handleCreateProject}>
+                Create New Project
+              </Button>
             </div>
 
             <div

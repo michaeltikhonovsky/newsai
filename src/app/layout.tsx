@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
+import { CoreProviders } from "@/components/providers/CoreProviders";
 
 const jetbrainsMono = JetBrains_Mono({
   variable: "--font-jetbrains-mono",
@@ -27,7 +28,7 @@ export default function RootLayout({
         <body
           className={`min-h-screen ${jetbrainsMono.variable} antialiased bg-background text-white`}
         >
-          {children}
+          <CoreProviders>{children}</CoreProviders>
         </body>
       </html>
     </ClerkProvider>

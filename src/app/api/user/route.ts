@@ -1,8 +1,8 @@
 import { NextResponse, NextRequest } from "next/server";
 import { getAuth } from "@clerk/nextjs/server";
 import { syncUser } from "@/lib/user";
-import { db } from "@/db";
-import { users } from "@/db/schema";
+import { db } from "@/server/db";
+import { users } from "@/server/db/schema";
 import { eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 
