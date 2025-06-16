@@ -353,7 +353,7 @@ export default function ProjectConfigPage() {
                               : "text-gray-300"
                           }`}
                         >
-                          30 Seconds
+                          30 Seconds (10 credits)
                         </h3>
                         <p className="text-sm text-gray-500">
                           Quick news bite (~400 characters)
@@ -396,7 +396,7 @@ export default function ProjectConfigPage() {
                               : "text-gray-300"
                           }`}
                         >
-                          60 Seconds
+                          60 Seconds (20 credits)
                         </h3>
                         <p className="text-sm text-gray-500">
                           Detailed news segment (~800 characters)
