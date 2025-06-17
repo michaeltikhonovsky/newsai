@@ -12,6 +12,7 @@ export default function Dashboard() {
   const { isLoaded, isSignedIn, user } = useUser();
   const router = useRouter();
   const [userData, setUserData] = useState({ firstName: "", lastName: "" });
+  const [projectCount, setProjectCount] = useState(0);
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
@@ -31,7 +32,22 @@ export default function Dashboard() {
         fetchUserProfile(user.primaryEmailAddress.emailAddress);
       }
     }
+
+    // Load project count
+    loadProjectCount();
   }, [isLoaded, isSignedIn, user]);
+
+  const loadProjectCount = () => {
+    try {
+      const savedProjects = localStorage.getItem("completedProjects");
+      if (savedProjects) {
+        const projects = JSON.parse(savedProjects);
+        setProjectCount(projects.length);
+      }
+    } catch (error) {
+      console.error("Error loading project count:", error);
+    }
+  };
 
   const fetchUserProfile = async (email: string) => {
     try {
@@ -137,14 +153,18 @@ export default function Dashboard() {
               </div>
               <h3 className="text-xl font-bold mb-2">{">"} Recent Projects</h3>
               <p style={{ color: "#AAAAAA" }} className="mb-6">
-                You haven't created any projects yet. Start by creating a new
-                one.
+                {projectCount === 0
+                  ? "You haven't created any projects yet. Start by creating a new one."
+                  : `You have ${projectCount} completed project${
+                      projectCount === 1 ? "" : "s"
+                    }. View and manage them here.`}
               </p>
               <Button
                 variant="outline"
                 className="border-gray-700 text-white hover:bg-gray-800"
+                onClick={() => router.push("/projects")}
               >
-                View All Projects
+                View All Projects {projectCount > 0 && `(${projectCount})`}
               </Button>
             </div>
           </motion.div>
