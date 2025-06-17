@@ -506,24 +506,24 @@ export default function ProjectConfigPage() {
                   )}
                 </CardContent>
               </Card>
+
+              {/* Continue Button */}
+              <motion.div
+                className="mt-6 flex justify-end"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.6 }}
+              >
+                <Button
+                  className="btn-primary px-8 py-3"
+                  onClick={handleContinue}
+                  disabled={!canProceed}
+                >
+                  Continue to Script →
+                </Button>
+              </motion.div>
             </motion.div>
           </div>
-
-          {/* Continue Button */}
-          <motion.div
-            className="mt-8 flex justify-end"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.6 }}
-          >
-            <Button
-              className="btn-primary px-8 py-3"
-              onClick={handleContinue}
-              disabled={!canProceed}
-            >
-              Continue to Script →
-            </Button>
-          </motion.div>
         </div>
       </main>
     </div>
