@@ -17,6 +17,10 @@ import {
   Users,
   Clock,
   Plus,
+  Play,
+  Pause,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 
 interface SavedProject {
@@ -52,6 +56,15 @@ export default function ProjectsPage() {
   const router = useRouter();
   const [projects, setProjects] = useState<SavedProject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [playingVideo, setPlayingVideo] = useState<string | null>(null);
+  const [videoStates, setVideoStates] = useState<{
+    [key: string]: {
+      isPlaying: boolean;
+      isMuted: boolean;
+      isLoading: boolean;
+      error: string | null;
+    };
+  }>({});
 
   useEffect(() => {
     loadProjects();
@@ -84,10 +97,18 @@ export default function ProjectsPage() {
   const deleteProject = (projectId: string) => {
     try {
       const updatedProjects = projects.filter((p) => p.id !== projectId);
-      setProjects(updatedProjects);
+
+      // ensure we still only keep the last 5 projects (newest first)
+      const sortedProjects = updatedProjects.sort(
+        (a: SavedProject, b: SavedProject) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      const limitedProjects = sortedProjects.slice(0, 5);
+
+      setProjects(limitedProjects);
       localStorage.setItem(
         "completedProjects",
-        JSON.stringify(updatedProjects)
+        JSON.stringify(limitedProjects)
       );
 
       toast({
@@ -156,6 +177,87 @@ export default function ProjectsPage() {
         project.host1Text?.substring(0, 100) + "..." || "No preview available"
       );
     }
+  };
+
+  const initializeVideoState = (projectId: string) => {
+    if (!videoStates[projectId]) {
+      setVideoStates((prev) => ({
+        ...prev,
+        [projectId]: {
+          isPlaying: false,
+          isMuted: false,
+          isLoading: false,
+          error: null,
+        },
+      }));
+    }
+  };
+
+  const toggleVideoPlay = (projectId: string) => {
+    const videoElement = document.getElementById(
+      `video-${projectId}`
+    ) as HTMLVideoElement;
+    if (!videoElement) return;
+
+    if (videoElement.paused) {
+      // Pause any other playing videos
+      if (playingVideo && playingVideo !== projectId) {
+        const otherVideo = document.getElementById(
+          `video-${playingVideo}`
+        ) as HTMLVideoElement;
+        if (otherVideo) {
+          otherVideo.pause();
+        }
+      }
+
+      videoElement.play();
+      setPlayingVideo(projectId);
+      setVideoStates((prev) => ({
+        ...prev,
+        [projectId]: { ...prev[projectId], isPlaying: true },
+      }));
+    } else {
+      videoElement.pause();
+      setPlayingVideo(null);
+      setVideoStates((prev) => ({
+        ...prev,
+        [projectId]: { ...prev[projectId], isPlaying: false },
+      }));
+    }
+  };
+
+  const toggleVideoMute = (projectId: string) => {
+    const videoElement = document.getElementById(
+      `video-${projectId}`
+    ) as HTMLVideoElement;
+    if (!videoElement) return;
+
+    videoElement.muted = !videoElement.muted;
+    setVideoStates((prev) => ({
+      ...prev,
+      [projectId]: { ...prev[projectId], isMuted: videoElement.muted },
+    }));
+  };
+
+  const handleVideoError = (projectId: string, error: string) => {
+    setVideoStates((prev) => ({
+      ...prev,
+      [projectId]: { ...prev[projectId], error, isLoading: false },
+    }));
+  };
+
+  const handleVideoLoadStart = (projectId: string) => {
+    setVideoStates((prev) => ({
+      ...prev,
+      [projectId]: { ...prev[projectId], isLoading: true, error: null },
+    }));
+  };
+
+  const handleVideoLoadedData = (projectId: string) => {
+    setVideoStates((prev) => ({
+      ...prev,
+      [projectId]: { ...prev[projectId], isLoading: false },
+    }));
   };
 
   if (isLoading) {
@@ -232,89 +334,146 @@ export default function ProjectsPage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {projects.map((project) => (
-                  <Card
-                    key={project.id}
-                    className="bg-gray-900/60 border border-gray-700 hover:border-gray-600 transition-colors"
-                  >
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <CardTitle className="font-mono text-gray-200 text-lg mb-2">
-                            {project.title}
-                          </CardTitle>
-                          <div className="flex items-center gap-2 text-sm text-gray-400 mb-2">
-                            <Calendar className="w-3 h-3" />
-                            {formatDate(project.createdAt)}
+                {projects.map((project) => {
+                  initializeVideoState(project.id);
+                  const videoState = videoStates[project.id] || {
+                    isPlaying: false,
+                    isMuted: false,
+                    isLoading: false,
+                    error: null,
+                  };
+
+                  return (
+                    <Card
+                      key={project.id}
+                      className="bg-gray-900/60 border border-gray-700 hover:border-gray-600 transition-colors"
+                    >
+                      <CardHeader>
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 text-sm text-gray-400 mb-2">
+                              <Calendar className="w-3 h-3" />
+                              {formatDate(project.createdAt)}
+                            </div>
                           </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => deleteProject(project.id)}
+                            className="text-gray-400 hover:text-red-400 p-1"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => deleteProject(project.id)}
-                          className="text-gray-400 hover:text-red-400 p-1"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {/* Project Info */}
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-xs text-gray-400">
-                          {project.mode === "single" ? (
-                            <User className="w-3 h-3" />
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {/* Video Preview */}
+                        <div className="relative bg-gray-800/50 border border-gray-600 rounded overflow-hidden">
+                          {videoState.error ? (
+                            <div className="aspect-video flex items-center justify-center bg-gray-800">
+                              <div className="text-center text-gray-400">
+                                <Video className="w-8 h-8 mx-auto mb-2" />
+                                <p className="text-xs">Video unavailable</p>
+                              </div>
+                            </div>
                           ) : (
-                            <Users className="w-3 h-3" />
-                          )}
-                          <span>
-                            {project.mode === "single"
-                              ? "Single Host"
-                              : "Host + Guest"}
-                          </span>
-                          <Clock className="w-3 h-3 ml-2" />
-                          <span>{project.duration}s</span>
-                        </div>
-                        <div className="text-xs text-gray-300">
-                          <span className="text-indigo-300">Host:</span>{" "}
-                          {hosts[project.selectedHost] || project.selectedHost}
-                          {project.selectedGuest && (
                             <>
-                              {" • "}
-                              <span className="text-indigo-300">
-                                Guest:
-                              </span>{" "}
-                              {guests[project.selectedGuest] ||
-                                project.selectedGuest}
+                              <video
+                                id={`video-${project.id}`}
+                                className="w-full aspect-video object-cover"
+                                controls={false}
+                                muted={videoState.isMuted}
+                                onLoadStart={() =>
+                                  handleVideoLoadStart(project.id)
+                                }
+                                onLoadedData={() =>
+                                  handleVideoLoadedData(project.id)
+                                }
+                                onError={() =>
+                                  handleVideoError(
+                                    project.id,
+                                    "Failed to load video"
+                                  )
+                                }
+                                onEnded={() => {
+                                  setPlayingVideo(null);
+                                  setVideoStates((prev) => ({
+                                    ...prev,
+                                    [project.id]: {
+                                      ...prev[project.id],
+                                      isPlaying: false,
+                                    },
+                                  }));
+                                }}
+                              >
+                                <source
+                                  src={`${API_BASE_URL}/video/${project.jobId}`}
+                                  type="video/mp4"
+                                />
+                                Your browser does not support the video tag.
+                              </video>
+
+                              {/* Video Controls Overlay */}
+                              <div className="absolute inset-0 bg-black/30 opacity-0 hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => toggleVideoPlay(project.id)}
+                                    className="bg-black/60 text-white hover:bg-black/80 p-2"
+                                    disabled={videoState.isLoading}
+                                  >
+                                    {videoState.isLoading ? (
+                                      <div className="w-4 h-4 animate-spin border-2 border-white border-t-transparent rounded-full" />
+                                    ) : videoState.isPlaying ? (
+                                      <Pause className="w-4 h-4" />
+                                    ) : (
+                                      <Play className="w-4 h-4" />
+                                    )}
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => toggleVideoMute(project.id)}
+                                    className="bg-black/60 text-white hover:bg-black/80 p-2"
+                                  >
+                                    {videoState.isMuted ? (
+                                      <VolumeX className="w-4 h-4" />
+                                    ) : (
+                                      <Volume2 className="w-4 h-4" />
+                                    )}
+                                  </Button>
+                                </div>
+                              </div>
                             </>
                           )}
                         </div>
-                      </div>
 
-                      {/* Script Preview */}
-                      <div className="bg-gray-800/50 border border-gray-600 rounded p-3">
-                        <p className="text-xs text-gray-400 mb-1">
-                          Script Preview:
-                        </p>
-                        <p className="text-xs text-gray-300 font-mono leading-relaxed">
-                          {getProjectPreview(project)}
-                        </p>
-                      </div>
+                        {/* Script Preview */}
+                        <div className="bg-gray-800/50 border border-gray-600 rounded p-3">
+                          <p className="text-xs text-gray-400 mb-1">
+                            Script Preview:
+                          </p>
+                          <p className="text-xs text-gray-300 font-mono leading-relaxed">
+                            {getProjectPreview(project)}
+                          </p>
+                        </div>
 
-                      {/* Actions */}
-                      <div className="flex gap-2">
-                        <Button
-                          onClick={() => downloadVideo(project)}
-                          className="btn-primary flex-1"
-                          size="sm"
-                        >
-                          <Download className="w-3 h-3 mr-1" />
-                          Download
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                        {/* Actions */}
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => downloadVideo(project)}
+                            className="btn-primary flex-1"
+                            size="sm"
+                          >
+                            <Download className="w-3 h-3 mr-1" />
+                            Download
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </motion.div>

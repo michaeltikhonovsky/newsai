@@ -2,7 +2,9 @@ import { Webhook } from "svix";
 import { headers } from "next/headers";
 import { WebhookEvent } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { syncUser } from "@/lib/user";
+import { createCallerFactory } from "@/server/api/trpc";
+import { appRouter } from "@/server/api/root";
+import { createTRPCContext } from "@/server/api/trpc";
 
 export async function POST(req: Request) {
   // Get the webhook signature from the headers
@@ -64,12 +66,13 @@ export async function POST(req: Request) {
 
     if (id && primaryEmail) {
       try {
-        await syncUser(
-          id,
-          primaryEmail,
-          first_name || undefined,
-          last_name || undefined
-        );
+        // Create tRPC context and caller for server-side usage
+        const ctx = await createTRPCContext({ headers: new Headers() });
+        const createCaller = createCallerFactory(appRouter);
+        const caller = createCaller(ctx);
+
+        // Call the syncUser tRPC procedure
+        await caller.users.syncUser();
 
         console.log(
           `User ${

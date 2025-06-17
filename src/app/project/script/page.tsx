@@ -377,6 +377,9 @@ export default function ProjectScriptPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [jobStatus, setJobStatus] = useState<JobStatus | null>(null);
 
+  // tRPC utils for invalidating queries
+  const utils = api.useUtils();
+
   // credit checks
   const { data: creditCheck } = api.users.checkCredits.useQuery(
     { duration: config?.duration || 30 },
@@ -435,6 +438,10 @@ export default function ProjectScriptPage() {
         // save project to localStorage
         saveCompletedProject(jobId);
 
+        // invalidate credit queries to refresh the balance
+        await utils.users.checkCredits.invalidate();
+        await utils.users.getCreditBalance.invalidate();
+
         toast({
           title: "Video Generated Successfully!",
           description: "Your news video is ready to download.",
@@ -492,6 +499,10 @@ export default function ProjectScriptPage() {
 
       const result = await response.json();
 
+      // invalidate credit queries immediately to reflect the deducted credits
+      await utils.users.checkCredits.invalidate();
+      await utils.users.getCreditBalance.invalidate();
+
       // start polling for status
       pollJobStatus(result.jobId);
     } catch (err: any) {
@@ -532,8 +543,18 @@ export default function ProjectScriptPage() {
       // add new project
       projects.push(project);
 
+      // keep only the last 5 projects (newest first)
+      const sortedProjects = projects.sort(
+        (a: any, b: any) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      const limitedProjects = sortedProjects.slice(0, 5);
+
       // save back to localStorage
-      localStorage.setItem("completedProjects", JSON.stringify(projects));
+      localStorage.setItem(
+        "completedProjects",
+        JSON.stringify(limitedProjects)
+      );
 
       console.log("Project saved to localStorage:", project);
     } catch (error) {
@@ -719,329 +740,337 @@ export default function ProjectScriptPage() {
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Configuration Summary */}
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-            >
-              <Card className="bg-gray-900/60 border border-gray-700 sticky top-6">
-                <CardHeader>
-                  <CardTitle className="font-mono text-gray-200 flex items-center gap-3">
-                    <Settings className="w-5 h-5" />
-                    Configuration
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="bg-gray-800/50 border border-gray-600 rounded-lg p-4">
-                    <div className="space-y-3 text-sm">
-                      <div className="flex items-center gap-2">
-                        {config.mode === "single" ? (
-                          <User className="w-4 h-4" />
-                        ) : (
-                          <Users className="w-4 h-4" />
-                        )}
-                        <span className="text-gray-300">
-                          {config.mode === "single"
-                            ? "Single Host"
-                            : "Host + Guest"}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-4 h-4" />
-                        <span className="text-gray-300">
-                          {config.duration} seconds
-                        </span>
-                      </div>
-                      <div className="text-gray-300">
-                        <span className="text-indigo-300">Host:</span>{" "}
-                        {getHostName(config.selectedHost)}
-                      </div>
-                      {config.mode === "host_guest_host" &&
-                        config.selectedGuest && (
-                          <div className="text-gray-300">
-                            <span className="text-indigo-300">Guest:</span>{" "}
-                            {getGuestName(config.selectedGuest)}
-                          </div>
-                        )}
-                    </div>
-                  </div>
-
-                  <div className="bg-indigo-500/10 border border-indigo-400/30 rounded-lg p-4">
-                    <h4 className="font-mono text-indigo-200 mb-2 text-sm">
-                      Character Limits:
-                    </h4>
-                    <div className="text-xs text-indigo-300 space-y-1">
-                      {config.mode === "single" ? (
-                        <p>
-                          Total: {CHARACTER_LIMITS[config.duration]} characters
-                        </p>
-                      ) : (
-                        <>
-                          <p>
-                            Host Intro:{" "}
-                            {Math.floor(
-                              CHARACTER_LIMITS[config.duration] * 0.3
-                            )}{" "}
-                            characters
-                          </p>
-                          <p>
-                            Guest:{" "}
-                            {Math.floor(
-                              CHARACTER_LIMITS[config.duration] * 0.4
-                            )}{" "}
-                            characters
-                          </p>
-                          <p>
-                            Host Outro:{" "}
-                            {Math.floor(
-                              CHARACTER_LIMITS[config.duration] * 0.3
-                            )}{" "}
-                            characters
-                          </p>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="bg-yellow-500/10 border border-yellow-400/30 rounded-lg p-4">
-                    <h4 className="font-mono text-yellow-200 mb-2 text-sm flex items-center gap-2">
-                      <Coins className="w-4 h-4" />
-                      Credit Requirements:
-                    </h4>
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="text-yellow-300">Cost:</span>
-                        <span className="text-yellow-200 font-bold">
-                          {creditCheck?.requiredCredits || 0} credits
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="text-yellow-300">Your Balance:</span>
-                        <span className="text-yellow-200 font-bold">
-                          {creditCheck?.userCredits || 0} credits
-                        </span>
-                      </div>
-                      {creditCheck && !creditCheck.hasEnoughCredits && (
-                        <div className="text-xs text-red-400 font-mono">
-                          ⚠️ Need {creditCheck.shortfall} more credits
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="text-center">
-                    <Button
-                      variant="outline"
-                      onClick={() => router.push("/project/config")}
-                      className="border-gray-600 text-gray-300 hover:bg-gray-800 w-full"
-                      disabled={isGenerating}
-                    >
-                      Modify Config
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            {/* script input or generation status */}
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5, delay: 0.4 }}
-              className="lg:col-span-2"
-            >
-              {/* show video preview when fully complete */}
-              {isVideoGenerationComplete() ? (
-                <Card className="bg-gray-900/60 border border-gray-700">
-                  <CardHeader>
-                    <CardTitle className="font-mono text-gray-200 flex items-center gap-3">
-                      <CheckCircle className="w-5 h-5 text-green-400" />
-                      Video Ready!
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="bg-gray-800/50 border border-gray-600 rounded-lg p-6">
-                      <div className="text-center space-y-4">
-                        <div className="bg-black rounded-lg aspect-video border border-gray-700 overflow-hidden">
-                          <video
-                            controls
-                            className="w-full h-full object-cover"
-                            preload="metadata"
-                            onError={() => {
-                              console.error("Video failed to load");
-                            }}
-                          >
-                            <source
-                              src={`/api/video/${jobStatus?.jobId}`}
-                              type="video/mp4"
-                            />
-                            <div className="flex items-center justify-center h-full">
-                              <div className="text-center space-y-3">
-                                <Play className="w-16 h-16 text-gray-400 mx-auto" />
-                                <p className="text-gray-400 font-mono">
-                                  Video preview unavailable
-                                </p>
-                                <p className="text-sm text-gray-500">
-                                  Your video is ready to download
-                                </p>
-                              </div>
-                            </div>
-                          </video>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* action buttons */}
-                    <div className="pt-6 border-t border-gray-700">
-                      <div className="flex justify-between items-center gap-4">
-                        <Button
-                          variant="outline"
-                          onClick={() => router.push("/dashboard")}
-                          className="border-gray-600 text-gray-300 hover:bg-gray-800 flex-1"
-                        >
-                          <Home className="w-4 h-4 mr-2" />
-                          Go to Dashboard
-                        </Button>
-
-                        <Button
-                          className="btn-primary px-8 py-3 flex-1"
-                          onClick={downloadVideo}
-                        >
-                          <Download className="w-4 h-4 mr-2" />
-                          Download Video
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ) : isGenerating || jobStatus ? (
-                <Card className="bg-gray-900/60 border border-gray-700">
-                  <CardHeader>
-                    <CardTitle className="font-mono text-gray-200 flex items-center gap-3">
-                      {jobStatus?.status === "completed" ? (
+          {/* Show centered layout when generating, grid layout otherwise */}
+          {isGenerating || jobStatus ? (
+            /* Centered layout for video generation */
+            <div className="max-w-4xl mx-auto">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+              >
+                {/* show video preview when fully complete */}
+                {isVideoGenerationComplete() ? (
+                  <Card className="bg-gray-900/60 border border-gray-700">
+                    <CardHeader>
+                      <CardTitle className="font-mono text-gray-200 flex items-center gap-3">
                         <CheckCircle className="w-5 h-5 text-green-400" />
-                      ) : jobStatus?.status === "failed" ? (
-                        <XCircle className="w-5 h-5 text-red-400" />
-                      ) : (
-                        ""
-                      )}
-                      {jobStatus?.status === "completed"
-                        ? "Video Generation Complete"
-                        : jobStatus?.status === "failed"
-                        ? "Video Generation Failed"
-                        : "Generating Video"}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    {jobStatus && (
-                      <div className="space-y-6">
-                        {/* Status Overview */}
-                        <div className="bg-gray-800/50 border border-gray-600 rounded-lg p-6">
-                          <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-3">
-                              {jobStatus.status === "pending" && (
-                                <Loader2 className="w-6 h-6 animate-spin text-yellow-400" />
-                              )}
-                              {jobStatus.status === "completed" && (
-                                <CheckCircle className="w-6 h-6 text-green-400" />
-                              )}
-                              {jobStatus.status === "failed" && (
-                                <XCircle className="w-6 h-6 text-red-400" />
-                              )}
-                              <div>
-                                <h3 className="text-lg font-semibold text-gray-200 capitalize">
-                                  {jobStatus.status}
-                                </h3>
-                                <p className="text-sm text-gray-400">
-                                  Job ID: {jobStatus.jobId}
+                        Video Ready!
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="bg-gray-800/50 border border-gray-600 rounded-lg p-6">
+                        <div className="text-center space-y-4">
+                          <div className="bg-black rounded-lg aspect-video border border-gray-700 overflow-hidden">
+                            <video
+                              controls
+                              className="w-full h-full object-cover"
+                              preload="metadata"
+                              onError={() => {
+                                console.error("Video failed to load");
+                              }}
+                            >
+                              <source
+                                src={`/api/video/${jobStatus?.jobId}`}
+                                type="video/mp4"
+                              />
+                              <div className="flex items-center justify-center h-full">
+                                <div className="text-center space-y-3">
+                                  <Play className="w-16 h-16 text-gray-400 mx-auto" />
+                                  <p className="text-gray-400 font-mono">
+                                    Video preview unavailable
+                                  </p>
+                                  <p className="text-sm text-gray-500">
+                                    Your video is ready to download
+                                  </p>
+                                </div>
+                              </div>
+                            </video>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* action buttons */}
+                      <div className="pt-6 border-t border-gray-700">
+                        <div className="flex justify-between items-center gap-4">
+                          <Button
+                            variant="outline"
+                            onClick={() => router.push("/dashboard")}
+                            className="border-gray-600 text-gray-300 hover:bg-gray-800 flex-1"
+                          >
+                            <Home className="w-4 h-4 mr-2" />
+                            Go to Dashboard
+                          </Button>
+
+                          <Button
+                            className="btn-primary px-8 py-3 flex-1"
+                            onClick={downloadVideo}
+                          >
+                            <Download className="w-4 h-4 mr-2" />
+                            Download Video
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : isGenerating || jobStatus ? (
+                  <Card className="bg-gray-900/60 border border-gray-700">
+                    <CardHeader>
+                      <CardTitle className="font-mono text-gray-200 flex items-center gap-3">
+                        {jobStatus?.status === "completed" ? (
+                          <CheckCircle className="w-5 h-5 text-green-400" />
+                        ) : jobStatus?.status === "failed" ? (
+                          <XCircle className="w-5 h-5 text-red-400" />
+                        ) : (
+                          ""
+                        )}
+                        {jobStatus?.status === "completed"
+                          ? "Video Generation Complete"
+                          : jobStatus?.status === "failed"
+                          ? "Video Generation Failed"
+                          : "Generating Video"}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      {jobStatus ? (
+                        <div className="space-y-6">
+                          {/* Status Overview */}
+                          <div className="bg-gray-800/50 border border-gray-600 rounded-lg p-6">
+                            <div className="flex items-center justify-between mb-4">
+                              <div className="flex items-center gap-3">
+                                {jobStatus.status === "pending" && (
+                                  <Loader2 className="w-6 h-6 animate-spin text-yellow-400" />
+                                )}
+                                {jobStatus.status === "completed" && (
+                                  <CheckCircle className="w-6 h-6 text-green-400" />
+                                )}
+                                {jobStatus.status === "failed" && (
+                                  <XCircle className="w-6 h-6 text-red-400" />
+                                )}
+                                <div>
+                                  <h3 className="text-lg font-semibold text-gray-200 capitalize">
+                                    {jobStatus.status}
+                                  </h3>
+                                  <p className="text-sm text-gray-400">
+                                    Job ID: {jobStatus.jobId}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="text-right text-sm text-gray-400">
+                                <p>
+                                  Started:{" "}
+                                  {new Date(
+                                    jobStatus.createdAt
+                                  ).toLocaleString()}
+                                </p>
+                                <p>
+                                  Updated:{" "}
+                                  {new Date(
+                                    jobStatus.updatedAt
+                                  ).toLocaleString()}
                                 </p>
                               </div>
                             </div>
-                            <div className="text-right text-sm text-gray-400">
-                              <p>
-                                Started:{" "}
-                                {new Date(jobStatus.createdAt).toLocaleString()}
-                              </p>
-                              <p>
-                                Updated:{" "}
-                                {new Date(jobStatus.updatedAt).toLocaleString()}
-                              </p>
-                            </div>
-                          </div>
 
-                          {/* Current Progress */}
-                          {jobStatus.progress && (
-                            <div className="bg-gray-700/50 border border-gray-600 rounded-lg p-4 mb-4">
-                              <div className="flex items-start gap-3">
-                                <div className="flex-shrink-0 mt-1">
-                                  {jobStatus.status === "processing" && (
-                                    <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
-                                  )}
-                                  {jobStatus.status === "pending" && (
-                                    <Clock className="w-4 h-4 text-yellow-400" />
-                                  )}
-                                </div>
-                                <div className="flex-1">
-                                  <h4 className="font-mono text-gray-200 font-medium mb-2">
-                                    Current Progress:
-                                  </h4>
-                                  <p className="text-gray-300 break-words mb-3">
-                                    {jobStatus.progress}
-                                  </p>
+                            {/* Current Progress */}
+                            {jobStatus.progress && (
+                              <div className="bg-gray-700/50 border border-gray-600 rounded-lg p-4 mb-4">
+                                <div className="flex items-start gap-3">
+                                  <div className="flex-shrink-0 mt-1">
+                                    {jobStatus.status === "processing" && (
+                                      <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
+                                    )}
+                                    {jobStatus.status === "pending" && (
+                                      <Clock className="w-4 h-4 text-yellow-400" />
+                                    )}
+                                  </div>
+                                  <div className="flex-1">
+                                    <h4 className="font-mono text-gray-200 font-medium mb-2">
+                                      Current Progress:
+                                    </h4>
+                                    <p className="text-gray-300 break-words mb-3">
+                                      {jobStatus.progress}
+                                    </p>
 
-                                  {/* character context */}
-                                  {config && (
-                                    <div className="flex gap-2 flex-wrap">
-                                      {config.mode === "single" ? (
-                                        <span className="text-indigo-300 bg-indigo-500/20 px-3 py-1 rounded-full text-sm">
-                                          {getHostName(config.selectedHost)}
-                                        </span>
-                                      ) : (
-                                        <>
-                                          <span className="text-blue-300 bg-blue-500/20 px-3 py-1 rounded-full text-sm">
-                                            Host:{" "}
+                                    {/* character context */}
+                                    {config && (
+                                      <div className="flex gap-2 flex-wrap">
+                                        {config.mode === "single" ? (
+                                          <span className="text-indigo-300 bg-indigo-500/20 px-3 py-1 rounded-full text-sm">
                                             {getHostName(config.selectedHost)}
                                           </span>
-                                          {config.selectedGuest && (
-                                            <span className="text-green-300 bg-green-500/20 px-3 py-1 rounded-full text-sm">
-                                              Guest:{" "}
-                                              {getGuestName(
-                                                config.selectedGuest
-                                              )}
+                                        ) : (
+                                          <>
+                                            <span className="text-blue-300 bg-blue-500/20 px-3 py-1 rounded-full text-sm">
+                                              Host:{" "}
+                                              {getHostName(config.selectedHost)}
                                             </span>
-                                          )}
-                                        </>
-                                      )}
-                                    </div>
-                                  )}
+                                            {config.selectedGuest && (
+                                              <span className="text-green-300 bg-green-500/20 px-3 py-1 rounded-full text-sm">
+                                                Guest:{" "}
+                                                {getGuestName(
+                                                  config.selectedGuest
+                                                )}
+                                              </span>
+                                            )}
+                                          </>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
+                              </div>
+                            )}
+
+                            {/* error display */}
+                            {jobStatus.status === "failed" &&
+                              jobStatus.error && (
+                                <div className="bg-red-500/10 border border-red-400/30 rounded-lg p-4 mb-4">
+                                  <div className="flex items-start gap-3">
+                                    <XCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                                    <div>
+                                      <h4 className="font-mono text-red-300 font-medium mb-2">
+                                        Error Details:
+                                      </h4>
+                                      <p className="text-red-200 break-words">
+                                        {jobStatus.error}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                          </div>
+
+                          {/* processing steps */}
+                          {(jobStatus.status === "processing" ||
+                            jobStatus.status === "completed") && (
+                            <div className="bg-gray-800/50 border border-gray-600 rounded-lg p-6">
+                              <h4 className="font-mono text-gray-200 mb-4 flex items-center gap-2">
+                                <Settings className="w-4 h-4" />
+                                Processing Pipeline
+                              </h4>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {getProcessingSteps(
+                                  jobStatus.progress,
+                                  config || undefined
+                                ).map((step, index) => (
+                                  <div
+                                    key={index}
+                                    className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-300 ${
+                                      step.completed
+                                        ? "bg-green-500/20 border border-green-400/30 text-green-300"
+                                        : step.current
+                                        ? "bg-blue-500/20 border border-blue-400/30 text-blue-300"
+                                        : "bg-gray-700/50 border border-gray-600 text-gray-500"
+                                    }`}
+                                  >
+                                    {step.completed ? (
+                                      <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                                    ) : step.current ? (
+                                      <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
+                                    ) : (
+                                      <div className="w-4 h-4 rounded-full border-2 border-current flex-shrink-0" />
+                                    )}
+                                    <span className="font-mono text-sm font-medium">
+                                      {step.label}
+                                    </span>
+                                  </div>
+                                ))}
                               </div>
                             </div>
                           )}
 
-                          {/* error display */}
-                          {jobStatus.status === "failed" && jobStatus.error && (
-                            <div className="bg-red-500/10 border border-red-400/30 rounded-lg p-4 mb-4">
-                              <div className="flex items-start gap-3">
-                                <XCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                          {/* action buttons */}
+                          <div className="pt-6 border-t border-gray-700">
+                            <div className="flex justify-between items-center">
+                              <Button
+                                variant="outline"
+                                onClick={() => {
+                                  setIsGenerating(false);
+                                  setJobStatus(null);
+                                }}
+                                className="border-gray-600 text-gray-300 hover:bg-gray-800"
+                                disabled={
+                                  isGenerating &&
+                                  jobStatus?.status === "processing"
+                                }
+                              >
+                                <ArrowLeft className="w-4 h-4 mr-2" />
+                                {jobStatus?.status === "completed"
+                                  ? "Create New Video"
+                                  : "Back to Script"}
+                              </Button>
+
+                              {jobStatus?.status === "completed" && (
+                                <Button
+                                  className="btn-primary px-8 py-3"
+                                  onClick={downloadVideo}
+                                >
+                                  <Download className="w-4 h-4 mr-2" />
+                                  Download Video
+                                </Button>
+                              )}
+
+                              {jobStatus?.status === "failed" && (
+                                <Button
+                                  className="btn-primary px-8 py-3"
+                                  onClick={generateVideo}
+                                  disabled={isGenerating}
+                                >
+                                  <Loader2
+                                    className={`w-4 h-4 mr-2 ${
+                                      isGenerating ? "animate-spin" : ""
+                                    }`}
+                                  />
+                                  Retry Generation
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        /* Initial loading state when generation just started */
+                        <div className="space-y-6">
+                          <div className="bg-gray-800/50 border border-gray-600 rounded-lg p-6">
+                            <div className="flex items-center justify-between mb-4">
+                              <div className="flex items-center gap-3">
+                                <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
                                 <div>
-                                  <h4 className="font-mono text-red-300 font-medium mb-2">
-                                    Error Details:
-                                  </h4>
-                                  <p className="text-red-200 break-words">
-                                    {jobStatus.error}
+                                  <h3 className="text-lg font-semibold text-gray-200">
+                                    Starting Generation
+                                  </h3>
+                                  <p className="text-sm text-gray-400">
+                                    Initializing video generation process...
                                   </p>
                                 </div>
                               </div>
                             </div>
-                          )}
-                        </div>
 
-                        {/* processing steps */}
-                        {(jobStatus.status === "processing" ||
-                          jobStatus.status === "completed") && (
+                            {/* character context */}
+                            {config && (
+                              <div className="flex gap-2 flex-wrap">
+                                {config.mode === "single" ? (
+                                  <span className="text-indigo-300 bg-indigo-500/20 px-3 py-1 rounded-full text-sm">
+                                    {getHostName(config.selectedHost)}
+                                  </span>
+                                ) : (
+                                  <>
+                                    <span className="text-blue-300 bg-blue-500/20 px-3 py-1 rounded-full text-sm">
+                                      Host: {getHostName(config.selectedHost)}
+                                    </span>
+                                    {config.selectedGuest && (
+                                      <span className="text-green-300 bg-green-500/20 px-3 py-1 rounded-full text-sm">
+                                        Guest:{" "}
+                                        {getGuestName(config.selectedGuest)}
+                                      </span>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Initial processing steps */}
                           <div className="bg-gray-800/50 border border-gray-600 rounded-lg p-6">
                             <h4 className="font-mono text-gray-200 mb-4 flex items-center gap-2">
                               <Settings className="w-4 h-4" />
@@ -1049,26 +1078,14 @@ export default function ProjectScriptPage() {
                             </h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                               {getProcessingSteps(
-                                jobStatus.progress,
+                                undefined,
                                 config || undefined
                               ).map((step, index) => (
                                 <div
                                   key={index}
-                                  className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-300 ${
-                                    step.completed
-                                      ? "bg-green-500/20 border border-green-400/30 text-green-300"
-                                      : step.current
-                                      ? "bg-blue-500/20 border border-blue-400/30 text-blue-300"
-                                      : "bg-gray-700/50 border border-gray-600 text-gray-500"
-                                  }`}
+                                  className="flex items-center gap-3 p-3 rounded-lg bg-gray-700/50 border border-gray-600 text-gray-500"
                                 >
-                                  {step.completed ? (
-                                    <CheckCircle className="w-4 h-4 flex-shrink-0" />
-                                  ) : step.current ? (
-                                    <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
-                                  ) : (
-                                    <div className="w-4 h-4 rounded-full border-2 border-current flex-shrink-0" />
-                                  )}
+                                  <div className="w-4 h-4 rounded-full border-2 border-current flex-shrink-0" />
                                   <span className="font-mono text-sm font-medium">
                                     {step.label}
                                   </span>
@@ -1076,61 +1093,240 @@ export default function ProjectScriptPage() {
                               ))}
                             </div>
                           </div>
-                        )}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ) : (
+                  /* original script input */
+                  <Card className="bg-gray-900/60 border border-gray-700">
+                    <CardHeader>
+                      <CardTitle className="font-mono text-gray-200 flex items-center gap-3">
+                        <FileText className="w-5 h-5" />
+                        News Script
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      {config.mode === "single" ? (
+                        <ScriptInput
+                          field="singleCharacterText"
+                          label="HOST SCRIPT"
+                          placeholder="Enter the complete news script for your anchor..."
+                          description="The entire news segment will be presented by a single host."
+                          scripts={scripts}
+                          handleScriptChange={handleScriptChange}
+                          getCharacterCount={getCharacterCount}
+                          getCharacterLimit={getCharacterLimit}
+                          isOverLimit={isOverLimit}
+                        />
+                      ) : (
+                        <div className="space-y-6">
+                          <ScriptInput
+                            field="host1Text"
+                            label="HOST INTRODUCTION"
+                            placeholder="Good evening, I'm here with..."
+                            description="Host introduces the topic and guest (~30% of total time)."
+                            scripts={scripts}
+                            handleScriptChange={handleScriptChange}
+                            getCharacterCount={getCharacterCount}
+                            getCharacterLimit={getCharacterLimit}
+                            isOverLimit={isOverLimit}
+                          />
 
-                        {/* action buttons */}
-                        <div className="pt-6 border-t border-gray-700">
-                          <div className="flex justify-between items-center">
-                            <Button
-                              variant="outline"
-                              onClick={() => {
-                                setIsGenerating(false);
-                                setJobStatus(null);
-                              }}
-                              className="border-gray-600 text-gray-300 hover:bg-gray-800"
-                              disabled={
-                                isGenerating &&
-                                jobStatus?.status === "processing"
-                              }
-                            >
-                              <ArrowLeft className="w-4 h-4 mr-2" />
-                              {jobStatus?.status === "completed"
-                                ? "Create New Video"
-                                : "Back to Script"}
-                            </Button>
+                          <ScriptInput
+                            field="guest1Text"
+                            label="GUEST SEGMENT"
+                            placeholder="Thank you for having me. Today I want to discuss..."
+                            description="Guest presents their main content (~40% of total time)."
+                            scripts={scripts}
+                            handleScriptChange={handleScriptChange}
+                            getCharacterCount={getCharacterCount}
+                            getCharacterLimit={getCharacterLimit}
+                            isOverLimit={isOverLimit}
+                          />
 
-                            {jobStatus?.status === "completed" && (
-                              <Button
-                                className="btn-primary px-8 py-3"
-                                onClick={downloadVideo}
-                              >
-                                <Download className="w-4 h-4 mr-2" />
-                                Download Video
-                              </Button>
-                            )}
+                          <ScriptInput
+                            field="host2Text"
+                            label="HOST CONCLUSION"
+                            placeholder="Thank you for that insight. That's all for today..."
+                            description="Host wraps up the segment (~30% of total time)."
+                            scripts={scripts}
+                            handleScriptChange={handleScriptChange}
+                            getCharacterCount={getCharacterCount}
+                            getCharacterLimit={getCharacterLimit}
+                            isOverLimit={isOverLimit}
+                          />
+                        </div>
+                      )}
 
-                            {jobStatus?.status === "failed" && (
-                              <Button
-                                className="btn-primary px-8 py-3"
-                                onClick={generateVideo}
-                                disabled={isGenerating}
-                              >
-                                <Loader2
-                                  className={`w-4 h-4 mr-2 ${
-                                    isGenerating ? "animate-spin" : ""
-                                  }`}
-                                />
-                                Retry Generation
-                              </Button>
-                            )}
+                      {/* continue button */}
+                      <div className="pt-6 border-t border-gray-700">
+                        <div className="flex justify-between items-center">
+                          <div className="text-sm text-gray-400">
+                            {canProceed()
+                              ? "✅ Script and credits ready for generation"
+                              : creditCheck && !creditCheck.hasEnoughCredits
+                              ? "⚠️ Insufficient credits - purchase more to continue"
+                              : "⚠️ Complete all script fields to continue"}
                           </div>
+                          <Button
+                            className="btn-primary px-8 py-3"
+                            onClick={handleContinue}
+                            disabled={!canProceed() || isGenerating}
+                          >
+                            {isGenerating ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Generating...
+                              </>
+                            ) : (
+                              "Generate Video →"
+                            )}
+                          </Button>
                         </div>
                       </div>
-                    )}
+                    </CardContent>
+                  </Card>
+                )}
+              </motion.div>
+            </div>
+          ) : (
+            /* Grid layout for script input */
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Configuration Summary */}
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+              >
+                <Card className="bg-gray-900/60 border border-gray-700 sticky top-6">
+                  <CardHeader>
+                    <CardTitle className="font-mono text-gray-200 flex items-center gap-3">
+                      <Settings className="w-5 h-5" />
+                      Configuration
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="bg-gray-800/50 border border-gray-600 rounded-lg p-4">
+                      <div className="space-y-3 text-sm">
+                        <div className="flex items-center gap-2">
+                          {config.mode === "single" ? (
+                            <User className="w-4 h-4" />
+                          ) : (
+                            <Users className="w-4 h-4" />
+                          )}
+                          <span className="text-gray-300">
+                            {config.mode === "single"
+                              ? "Single Host"
+                              : "Host + Guest"}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-4 h-4" />
+                          <span className="text-gray-300">
+                            {config.duration} seconds
+                          </span>
+                        </div>
+                        <div className="text-gray-300">
+                          <span className="text-indigo-300">Host:</span>{" "}
+                          {getHostName(config.selectedHost)}
+                        </div>
+                        {config.mode === "host_guest_host" &&
+                          config.selectedGuest && (
+                            <div className="text-gray-300">
+                              <span className="text-indigo-300">Guest:</span>{" "}
+                              {getGuestName(config.selectedGuest)}
+                            </div>
+                          )}
+                      </div>
+                    </div>
+
+                    <div className="bg-indigo-500/10 border border-indigo-400/30 rounded-lg p-4">
+                      <h4 className="font-mono text-indigo-200 mb-2 text-sm">
+                        Character Limits:
+                      </h4>
+                      <div className="text-xs text-indigo-300 space-y-1">
+                        {config.mode === "single" ? (
+                          <p>
+                            Total: {CHARACTER_LIMITS[config.duration]}{" "}
+                            characters
+                          </p>
+                        ) : (
+                          <>
+                            <p>
+                              Host Intro:{" "}
+                              {Math.floor(
+                                CHARACTER_LIMITS[config.duration] * 0.3
+                              )}{" "}
+                              characters
+                            </p>
+                            <p>
+                              Guest:{" "}
+                              {Math.floor(
+                                CHARACTER_LIMITS[config.duration] * 0.4
+                              )}{" "}
+                              characters
+                            </p>
+                            <p>
+                              Host Outro:{" "}
+                              {Math.floor(
+                                CHARACTER_LIMITS[config.duration] * 0.3
+                              )}{" "}
+                              characters
+                            </p>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="bg-yellow-500/10 border border-yellow-400/30 rounded-lg p-4">
+                      <h4 className="font-mono text-yellow-200 mb-2 text-sm flex items-center gap-2">
+                        <Coins className="w-4 h-4" />
+                        Credit Requirements:
+                      </h4>
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-yellow-300">Cost:</span>
+                          <span className="text-yellow-200 font-bold">
+                            {creditCheck?.requiredCredits || 0} credits
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-yellow-300">Your Balance:</span>
+                          <span className="text-yellow-200 font-bold">
+                            {creditCheck?.userCredits || 0} credits
+                          </span>
+                        </div>
+                        {creditCheck && !creditCheck.hasEnoughCredits && (
+                          <div className="text-xs text-red-400 font-mono">
+                            ⚠️ Need {creditCheck.shortfall} more credits
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="text-center">
+                      <Button
+                        variant="outline"
+                        onClick={() => router.push("/project/config")}
+                        className="border-gray-600 text-gray-300 hover:bg-gray-800 w-full"
+                        disabled={isGenerating}
+                      >
+                        Modify Config
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
-              ) : (
-                /* original script input */
+              </motion.div>
+
+              {/* script input */}
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.5, delay: 0.4 }}
+                className="lg:col-span-2"
+              >
+                {/* original script input */}
                 <Card className="bg-gray-900/60 border border-gray-700">
                   <CardHeader>
                     <CardTitle className="font-mono text-gray-200 flex items-center gap-3">
@@ -1219,9 +1415,9 @@ export default function ProjectScriptPage() {
                     </div>
                   </CardContent>
                 </Card>
-              )}
-            </motion.div>
-          </div>
+              </motion.div>
+            </div>
+          )}
         </div>
       </main>
     </div>
