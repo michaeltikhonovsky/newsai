@@ -50,8 +50,6 @@ const guests: { [key: string]: string } = {
   HW: "Holly Williams",
 };
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
 export default function ProjectsPage() {
   const router = useRouter();
   const [projects, setProjects] = useState<SavedProject[]>([]);
@@ -127,7 +125,7 @@ export default function ProjectsPage() {
 
   const downloadVideo = async (project: SavedProject) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/video/${project.jobId}`);
+      const response = await fetch(`/api/video/${project.jobId}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -407,7 +405,7 @@ export default function ProjectsPage() {
                                 }}
                               >
                                 <source
-                                  src={`${API_BASE_URL}/video/${project.jobId}`}
+                                  src={`/api/video/${project.jobId}`}
                                   type="video/mp4"
                                 />
                                 Your browser does not support the video tag.

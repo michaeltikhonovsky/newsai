@@ -9,11 +9,18 @@ import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { Navbar } from "@/components/Navbar";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
+import { Play, Pause, Volume2, VolumeX } from "lucide-react";
 
 export default function Home() {
   const { isLoaded, isSignedIn } = useUser();
   const router = useRouter();
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
+  const [demoVideoState, setDemoVideoState] = useState({
+    isPlaying: false,
+    isMuted: false,
+    isLoading: false,
+    error: null as string | null,
+  });
 
   // Animation variants
   const fadeIn = {
@@ -37,6 +44,43 @@ export default function Home() {
     } else {
       setIsAuthDialogOpen(true);
     }
+  };
+
+  const toggleDemoVideoPlay = () => {
+    const videoElement = document.getElementById(
+      "demo-video"
+    ) as HTMLVideoElement;
+    if (!videoElement) return;
+
+    if (videoElement.paused) {
+      videoElement.play();
+      setDemoVideoState((prev) => ({ ...prev, isPlaying: true }));
+    } else {
+      videoElement.pause();
+      setDemoVideoState((prev) => ({ ...prev, isPlaying: false }));
+    }
+  };
+
+  const toggleDemoVideoMute = () => {
+    const videoElement = document.getElementById(
+      "demo-video"
+    ) as HTMLVideoElement;
+    if (!videoElement) return;
+
+    videoElement.muted = !videoElement.muted;
+    setDemoVideoState((prev) => ({ ...prev, isMuted: videoElement.muted }));
+  };
+
+  const handleDemoVideoError = (error: string) => {
+    setDemoVideoState((prev) => ({ ...prev, error, isLoading: false }));
+  };
+
+  const handleDemoVideoLoadStart = () => {
+    setDemoVideoState((prev) => ({ ...prev, isLoading: true, error: null }));
+  };
+
+  const handleDemoVideoLoadedData = () => {
+    setDemoVideoState((prev) => ({ ...prev, isLoading: false }));
   };
 
   return (
@@ -80,7 +124,7 @@ export default function Home() {
                   className="btn-primary mt-4 w-fit"
                   onClick={handleCreateClick}
                 >
-                  $ Start Creating
+                  {isLoaded && isSignedIn ? "Dashboard" : "$ Start Creating"}
                 </Button>
               </motion.div>
             </div>
@@ -94,18 +138,75 @@ export default function Home() {
             transition={{ duration: 0.7 }}
           >
             <div className="relative w-full max-w-lg aspect-video rounded-lg border border-gray-800 overflow-hidden">
-              <video
-                className="w-full h-full object-cover"
-                controls
-                preload="metadata"
-                poster=""
-              >
-                <source src="/demos/demo1.mp4" type="video/mp4" />
-                Your browser does not support the video tag.
-              </video>
-              <div className="absolute top-4 left-4 bg-black/70 px-3 py-1 rounded-md">
-                <h3 className="text-sm font-bold text-white">NEWSAI DEMO</h3>
-              </div>
+              {demoVideoState.error ? (
+                <div className="aspect-video flex items-center justify-center bg-gray-800">
+                  <div className="text-center text-gray-400">
+                    <IoVideocamOutline className="w-8 h-8 mx-auto mb-2" />
+                    <p className="text-xs">Video unavailable</p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <video
+                    id="demo-video"
+                    className="w-full h-full object-cover"
+                    controls={false}
+                    muted={demoVideoState.isMuted}
+                    preload="metadata"
+                    onLoadStart={handleDemoVideoLoadStart}
+                    onLoadedData={handleDemoVideoLoadedData}
+                    onError={() => handleDemoVideoError("Failed to load video")}
+                    onEnded={() => {
+                      setDemoVideoState((prev) => ({
+                        ...prev,
+                        isPlaying: false,
+                      }));
+                    }}
+                  >
+                    <source src="/demos/demo1.mp4" type="video/mp4" />
+                    Your browser does not support the video tag.
+                  </video>
+
+                  {/* Video Controls Overlay */}
+                  <div className="absolute inset-0 bg-black/30 opacity-0 hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={toggleDemoVideoPlay}
+                        className="bg-black/60 text-white hover:bg-black/80 p-2"
+                        disabled={demoVideoState.isLoading}
+                      >
+                        {demoVideoState.isLoading ? (
+                          <div className="w-4 h-4 animate-spin border-2 border-white border-t-transparent rounded-full" />
+                        ) : demoVideoState.isPlaying ? (
+                          <Pause className="w-4 h-4" />
+                        ) : (
+                          <Play className="w-4 h-4" />
+                        )}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={toggleDemoVideoMute}
+                        className="bg-black/60 text-white hover:bg-black/80 p-2"
+                      >
+                        {demoVideoState.isMuted ? (
+                          <VolumeX className="w-4 h-4" />
+                        ) : (
+                          <Volume2 className="w-4 h-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="absolute top-4 left-4 bg-black/70 px-3 py-1 rounded-md">
+                    <h3 className="text-sm font-bold text-white">
+                      NEWSAI DEMO
+                    </h3>
+                  </div>
+                </>
+              )}
             </div>
           </motion.div>
         </div>
@@ -261,6 +362,11 @@ export default function Home() {
           </div>
         </div>
       </main>
+
+      {/* Auth Dialog */}
+      <Dialog open={isAuthDialogOpen} onOpenChange={setIsAuthDialogOpen}>
+        <AuthDialog />
+      </Dialog>
 
       {/* Footer */}
       <motion.footer
