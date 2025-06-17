@@ -9,7 +9,12 @@ import {
 import { currentUser } from "@clerk/nextjs/server";
 import { users } from "@/server/db/schema";
 import { eq } from "drizzle-orm";
-import crypto from "crypto";
+
+// Credit costs for different video durations
+const CREDIT_COSTS = {
+  30: 10, // 30 second videos cost 10 credits
+  60: 20, // 60 second videos cost 20 credits
+} as const;
 
 export const userRouter = createTRPCRouter({
   getUser: maybeAuthedProcedure.query(async ({ ctx }) => {
@@ -71,6 +76,30 @@ export const userRouter = createTRPCRouter({
         .set(input)
         .where(eq(users.clerkId, ctx.user.clerkId));
       return { success: true };
+    }),
+
+  // get user's credit balance
+  getCreditBalance: protectedProcedure.query(async ({ ctx }) => {
+    return {
+      balance: ctx.user.creditBalance || 0,
+    };
+  }),
+  checkCredits: protectedProcedure
+    .input(
+      z.object({
+        duration: z.union([z.literal(30), z.literal(60)]),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const requiredCredits = CREDIT_COSTS[input.duration];
+      const userCredits = ctx.user.creditBalance || 0;
+
+      return {
+        hasEnoughCredits: userCredits >= requiredCredits,
+        requiredCredits,
+        userCredits,
+        shortfall: Math.max(0, requiredCredits - userCredits),
+      };
     }),
 
   hello: betaProcedure.query(async ({ ctx }) => {

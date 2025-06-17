@@ -2,6 +2,7 @@
 
 import { api } from "@/trpc/react";
 import { Coins, Loader2 } from "lucide-react";
+import { useUser } from "@clerk/nextjs";
 
 interface CreditDisplayProps {
   className?: string;
@@ -12,7 +13,21 @@ export function CreditDisplay({
   className = "",
   showLabel = true,
 }: CreditDisplayProps) {
-  const { data: creditData, isLoading } = api.video.getCreditBalance.useQuery();
+  const { isLoaded, isSignedIn } = useUser();
+  const { data: creditData, isLoading } = api.users.getCreditBalance.useQuery(
+    undefined,
+    {
+      enabled: isLoaded && isSignedIn,
+    }
+  );
+
+  if (!isLoaded) {
+    return <div className={`w-16 h-6 ${className}`} />;
+  }
+
+  if (!isSignedIn) {
+    return <div className={`w-0 h-6 ${className}`} />;
+  }
 
   if (isLoading) {
     return (

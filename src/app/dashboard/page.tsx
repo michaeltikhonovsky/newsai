@@ -27,10 +27,7 @@ export default function Dashboard() {
         lastName: user.lastName || "",
       });
 
-      // Also fetch from API if available
-      if (user.primaryEmailAddress?.emailAddress) {
-        fetchUserProfile(user.primaryEmailAddress.emailAddress);
-      }
+      // Use data from Clerk user object directly
     }
 
     // Load project count
@@ -46,23 +43,6 @@ export default function Dashboard() {
       }
     } catch (error) {
       console.error("Error loading project count:", error);
-    }
-  };
-
-  const fetchUserProfile = async (email: string) => {
-    try {
-      const response = await fetch(
-        `/api/user?email=${encodeURIComponent(email)}`
-      );
-      if (response.ok) {
-        const data = await response.json();
-        setUserData({
-          firstName: data.firstName || user?.firstName || "",
-          lastName: data.lastName || user?.lastName || "",
-        });
-      }
-    } catch (error) {
-      console.error("Error fetching user profile:", error);
     }
   };
 

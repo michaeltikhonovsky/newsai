@@ -116,47 +116,8 @@ export default function OneTimePassword({ attempt }: OneTimePasswordProps) {
 
           console.log("Extracted data:", { clerkId, email });
 
-          // Only try to sync if we have both userId and email
-          if (clerkId && email) {
-            try {
-              // Sync user to database using the sync endpoint
-              const response = await fetch("/api/user/sync", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  userId: clerkId,
-                  email: email,
-                  firstName: attempt.firstName || undefined,
-                  lastName: attempt.lastName || undefined,
-                }),
-              });
-
-              if (!response.ok) {
-                const errorData = await response.json();
-                console.error("User sync API error:", errorData);
-                throw new Error(
-                  errorData.error || `Failed to sync user: ${response.status}`
-                );
-              } else {
-                const responseData = await response.json();
-                console.log("User sync successful:", responseData);
-              }
-            } catch (syncError) {
-              console.error("User sync error:", syncError);
-              // Don't throw error here, allow login to continue even if sync fails
-              toast.error("Profile sync failed, but you can still continue");
-            }
-          } else {
-            console.warn(
-              "Missing user data for sync, but proceeding with login",
-              {
-                clerkId,
-                email,
-              }
-            );
-          }
+          // User sync is now handled automatically by Clerk webhooks
+          console.log("User authenticated successfully:", { clerkId, email });
 
           toast.success("You've successfully logged in!");
 

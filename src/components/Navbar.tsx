@@ -28,22 +28,26 @@ export function Navbar() {
           NewsAI
         </Link>
         <div className="flex items-center gap-4">
-          {isLoaded && isSignedIn && <CreditDisplay />}
+          <CreditDisplay />
           <div className="flex gap-2">
-            {isLoaded && isSignedIn ? (
-              <UserProfileDropdown />
+            {isLoaded ? (
+              isSignedIn ? (
+                <UserProfileDropdown />
+              ) : (
+                <Dialog
+                  open={isAuthDialogOpen}
+                  onOpenChange={setIsAuthDialogOpen}
+                >
+                  <DialogTrigger asChild>
+                    <Button className="hover:text-accent transition-colors">
+                      Sign In
+                    </Button>
+                  </DialogTrigger>
+                  <AuthDialog />
+                </Dialog>
+              )
             ) : (
-              <Dialog
-                open={isAuthDialogOpen}
-                onOpenChange={setIsAuthDialogOpen}
-              >
-                <DialogTrigger asChild>
-                  <Button className="hover:text-accent transition-colors">
-                    Sign In
-                  </Button>
-                </DialogTrigger>
-                <AuthDialog />
-              </Dialog>
+              <div className="w-20 h-10" />
             )}
           </div>
         </div>

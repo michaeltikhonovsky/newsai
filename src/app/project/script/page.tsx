@@ -8,7 +8,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Navbar } from "@/components/Navbar";
 import { toast } from "@/hooks/use-toast";
-import { CreditDisplay } from "@/components/CreditDisplay";
 import { api } from "@/trpc/react";
 import {
   ArrowLeft,
@@ -379,8 +378,7 @@ export default function ProjectScriptPage() {
   const [jobStatus, setJobStatus] = useState<JobStatus | null>(null);
 
   // credit checks
-  const { data: creditData } = api.video.getCreditBalance.useQuery();
-  const { data: creditCheck } = api.video.checkCredits.useQuery(
+  const { data: creditCheck } = api.users.checkCredits.useQuery(
     { duration: config?.duration || 30 },
     { enabled: !!config }
   );
@@ -927,7 +925,7 @@ export default function ProjectScriptPage() {
                       ) : jobStatus?.status === "failed" ? (
                         <XCircle className="w-5 h-5 text-red-400" />
                       ) : (
-                        <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
+                        ""
                       )}
                       {jobStatus?.status === "completed"
                         ? "Video Generation Complete"
@@ -945,9 +943,6 @@ export default function ProjectScriptPage() {
                             <div className="flex items-center gap-3">
                               {jobStatus.status === "pending" && (
                                 <Loader2 className="w-6 h-6 animate-spin text-yellow-400" />
-                              )}
-                              {jobStatus.status === "processing" && (
-                                <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
                               )}
                               {jobStatus.status === "completed" && (
                                 <CheckCircle className="w-6 h-6 text-green-400" />
