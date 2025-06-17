@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { IoVideocamOutline } from "react-icons/io5";
 import { motion } from "framer-motion";
@@ -14,13 +14,22 @@ import { useUser } from "@clerk/nextjs";
 export function Navbar() {
   const { isLoaded, isSignedIn } = useUser();
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
+  const [hasAnimated, setHasAnimated] = useState(true);
+
+  useEffect(() => {
+    const navbarAnimated = sessionStorage.getItem("navbar-animated");
+    if (!navbarAnimated) {
+      setHasAnimated(false);
+      sessionStorage.setItem("navbar-animated", "true");
+    }
+  }, []);
 
   return (
     <motion.header
       className="border-b border-gray-800 py-4"
-      initial={{ opacity: 0, y: -20 }}
+      initial={hasAnimated ? { opacity: 1, y: 0 } : { opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
+      transition={{ duration: hasAnimated ? 0 : 0.5 }}
     >
       <div className="container-custom flex justify-between items-center">
         <Link href="/" className="text-2xl font-bold flex items-center gap-2">

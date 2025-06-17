@@ -18,6 +18,8 @@ export function CreditDisplay({
     undefined,
     {
       enabled: isLoaded && isSignedIn,
+      staleTime: 30000,
+      refetchOnWindowFocus: false,
     }
   );
 

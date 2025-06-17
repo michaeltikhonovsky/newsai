@@ -108,23 +108,16 @@ export default function OneTimePassword({ attempt }: OneTimePasswordProps) {
           else if (verificationResult.status === "complete") {
             // If we can't get the ID but verification is complete, just proceed with login
             toast.success("You've successfully logged in!");
-            setTimeout(() => {
-              window.location.href = "/";
-            }, 1000);
+            window.location.href = "/sync";
             return;
           }
 
           console.log("Extracted data:", { clerkId, email });
 
-          // User sync is now handled automatically by Clerk webhooks
           console.log("User authenticated successfully:", { clerkId, email });
 
           toast.success("You've successfully logged in!");
-
-          // Use a small delay before redirect to ensure toast is shown
-          setTimeout(() => {
-            window.location.href = "/";
-          }, 1000);
+          window.location.href = "/sync";
         } catch (err) {
           console.error("Failed to complete verification:", err);
           toast.error(
