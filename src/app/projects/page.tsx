@@ -344,7 +344,7 @@ export default function ProjectsPage() {
                   return (
                     <Card
                       key={project.id}
-                      className="bg-gray-900/60 border border-gray-700 hover:border-gray-600 transition-colors"
+                      className="bg-gray-900/60 border border-gray-700 hover:border-gray-600 transition-colors flex flex-col h-full"
                     >
                       <CardHeader>
                         <div className="flex items-start justify-between">
@@ -364,101 +364,107 @@ export default function ProjectsPage() {
                           </Button>
                         </div>
                       </CardHeader>
-                      <CardContent className="space-y-4">
-                        {/* Video Preview */}
-                        <div className="relative bg-gray-800/50 border border-gray-600 rounded overflow-hidden">
-                          {videoState.error ? (
-                            <div className="aspect-video flex items-center justify-center bg-gray-800">
-                              <div className="text-center text-gray-400">
-                                <Video className="w-8 h-8 mx-auto mb-2" />
-                                <p className="text-xs">Video unavailable</p>
-                              </div>
-                            </div>
-                          ) : (
-                            <>
-                              <video
-                                id={`video-${project.id}`}
-                                className="w-full aspect-video object-cover"
-                                controls={false}
-                                muted={videoState.isMuted}
-                                onLoadStart={() =>
-                                  handleVideoLoadStart(project.id)
-                                }
-                                onLoadedData={() =>
-                                  handleVideoLoadedData(project.id)
-                                }
-                                onError={() =>
-                                  handleVideoError(
-                                    project.id,
-                                    "Failed to load video"
-                                  )
-                                }
-                                onEnded={() => {
-                                  setPlayingVideo(null);
-                                  setVideoStates((prev) => ({
-                                    ...prev,
-                                    [project.id]: {
-                                      ...prev[project.id],
-                                      isPlaying: false,
-                                    },
-                                  }));
-                                }}
-                              >
-                                <source
-                                  src={`/api/video/${project.jobId}`}
-                                  type="video/mp4"
-                                />
-                                Your browser does not support the video tag.
-                              </video>
-
-                              {/* Video Controls Overlay */}
-                              <div className="absolute inset-0 bg-black/30 opacity-0 hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
-                                <div className="flex items-center gap-2">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => toggleVideoPlay(project.id)}
-                                    className="bg-black/60 text-white hover:bg-black/80 p-2"
-                                    disabled={videoState.isLoading}
-                                  >
-                                    {videoState.isLoading ? (
-                                      <div className="w-4 h-4 animate-spin border-2 border-white border-t-transparent rounded-full" />
-                                    ) : videoState.isPlaying ? (
-                                      <Pause className="w-4 h-4" />
-                                    ) : (
-                                      <Play className="w-4 h-4" />
-                                    )}
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => toggleVideoMute(project.id)}
-                                    className="bg-black/60 text-white hover:bg-black/80 p-2"
-                                  >
-                                    {videoState.isMuted ? (
-                                      <VolumeX className="w-4 h-4" />
-                                    ) : (
-                                      <Volume2 className="w-4 h-4" />
-                                    )}
-                                  </Button>
+                      <CardContent className="flex flex-col flex-1 justify-between">
+                        <div className="space-y-4">
+                          {/* Video Preview */}
+                          <div className="relative bg-gray-800/50 border border-gray-600 rounded overflow-hidden">
+                            {videoState.error ? (
+                              <div className="aspect-video flex items-center justify-center bg-gray-800">
+                                <div className="text-center text-gray-400">
+                                  <Video className="w-8 h-8 mx-auto mb-2" />
+                                  <p className="text-xs">Video unavailable</p>
                                 </div>
                               </div>
-                            </>
-                          )}
-                        </div>
+                            ) : (
+                              <>
+                                <video
+                                  id={`video-${project.id}`}
+                                  className="w-full aspect-video object-cover"
+                                  controls={false}
+                                  muted={videoState.isMuted}
+                                  onLoadStart={() =>
+                                    handleVideoLoadStart(project.id)
+                                  }
+                                  onLoadedData={() =>
+                                    handleVideoLoadedData(project.id)
+                                  }
+                                  onError={() =>
+                                    handleVideoError(
+                                      project.id,
+                                      "Failed to load video"
+                                    )
+                                  }
+                                  onEnded={() => {
+                                    setPlayingVideo(null);
+                                    setVideoStates((prev) => ({
+                                      ...prev,
+                                      [project.id]: {
+                                        ...prev[project.id],
+                                        isPlaying: false,
+                                      },
+                                    }));
+                                  }}
+                                >
+                                  <source
+                                    src={`/api/video/${project.jobId}`}
+                                    type="video/mp4"
+                                  />
+                                  Your browser does not support the video tag.
+                                </video>
 
-                        {/* Script Preview */}
-                        <div className="bg-gray-800/50 border border-gray-600 rounded p-3">
-                          <p className="text-xs text-gray-400 mb-1">
-                            Script Preview:
-                          </p>
-                          <p className="text-xs text-gray-300 font-mono leading-relaxed">
-                            {getProjectPreview(project)}
-                          </p>
+                                {/* Video Controls Overlay */}
+                                <div className="absolute inset-0 bg-black/30 opacity-0 hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() =>
+                                        toggleVideoPlay(project.id)
+                                      }
+                                      className="bg-black/60 text-white hover:bg-black/80 p-2"
+                                      disabled={videoState.isLoading}
+                                    >
+                                      {videoState.isLoading ? (
+                                        <div className="w-4 h-4 animate-spin border-2 border-white border-t-transparent rounded-full" />
+                                      ) : videoState.isPlaying ? (
+                                        <Pause className="w-4 h-4" />
+                                      ) : (
+                                        <Play className="w-4 h-4" />
+                                      )}
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() =>
+                                        toggleVideoMute(project.id)
+                                      }
+                                      className="bg-black/60 text-white hover:bg-black/80 p-2"
+                                    >
+                                      {videoState.isMuted ? (
+                                        <VolumeX className="w-4 h-4" />
+                                      ) : (
+                                        <Volume2 className="w-4 h-4" />
+                                      )}
+                                    </Button>
+                                  </div>
+                                </div>
+                              </>
+                            )}
+                          </div>
+
+                          {/* Script Preview */}
+                          <div className="bg-gray-800/50 border border-gray-600 rounded p-3">
+                            <p className="text-xs text-gray-400 mb-1">
+                              Script Preview:
+                            </p>
+                            <p className="text-xs text-gray-300 font-mono leading-relaxed">
+                              {getProjectPreview(project)}
+                            </p>
+                          </div>
                         </div>
 
                         {/* Actions */}
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 mt-4">
                           <Button
                             onClick={() => downloadVideo(project)}
                             className="btn-primary flex-1"

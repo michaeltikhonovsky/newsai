@@ -124,7 +124,7 @@ export default function Home() {
                   className="btn-primary mt-4 w-fit"
                   onClick={handleCreateClick}
                 >
-                  {isLoaded && isSignedIn ? "Dashboard" : "$ Start Creating"}
+                  {isLoaded && isSignedIn ? "$ Dashboard" : "$ Start Creating"}
                 </Button>
               </motion.div>
             </div>

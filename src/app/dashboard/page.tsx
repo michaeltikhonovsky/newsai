@@ -96,7 +96,7 @@ export default function Dashboard() {
                 Start creating a news clip from scratch.
               </p>
               <Button className="btn-primary" onClick={handleCreateProject}>
-                Create New Project
+                $ Create New Project
               </Button>
             </div>
 
@@ -144,7 +144,7 @@ export default function Dashboard() {
                 className="border-gray-700 text-white hover:bg-gray-800"
                 onClick={() => router.push("/projects")}
               >
-                View All Projects {projectCount > 0 && `(${projectCount})`}
+                $ View All Projects {projectCount > 0 && `(${projectCount})`}
               </Button>
             </div>
           </motion.div>

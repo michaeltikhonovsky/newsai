@@ -7,7 +7,7 @@ import {
   maybeAuthedProcedure,
 } from "@/server/api/trpc";
 import { currentUser } from "@clerk/nextjs/server";
-import { users } from "@/server/db/schema";
+import { users, creditRefunds } from "@/server/db/schema";
 import { eq } from "drizzle-orm";
 
 // Credit costs for different video durations
@@ -118,4 +118,62 @@ export const userRouter = createTRPCRouter({
     });
     return userIds.map((user: { id: number }) => ({ id: user.id.toString() }));
   }),
+
+  // refund credits for failed video generation
+  refundCredits: protectedProcedure
+    .input(
+      z.object({
+        jobId: z.string(),
+        duration: z.union([z.literal(30), z.literal(60)]),
+        reason: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // check if refund already exists for this job
+      const existingRefund = await ctx.db.query.creditRefunds.findFirst({
+        where: eq(creditRefunds.jobId, input.jobId),
+      });
+
+      if (existingRefund) {
+        return {
+          success: false,
+          error: "Refund already processed for this job",
+          refundAmount: existingRefund.refundAmount,
+        };
+      }
+
+      const refundAmount = CREDIT_COSTS[input.duration];
+      const currentCredits = ctx.user.creditBalance || 0;
+      const newBalance = currentCredits + refundAmount;
+
+      // update user's credit balance and record the refund
+      await ctx.db.transaction(async (tx) => {
+        // update credit balance
+        await tx
+          .update(users)
+          .set({
+            creditBalance: newBalance,
+          })
+          .where(eq(users.id, ctx.user.id));
+
+        // record the refund
+        await tx.insert(creditRefunds).values({
+          userId: ctx.user.id,
+          jobId: input.jobId,
+          refundAmount,
+          reason: input.reason || "Video generation failed",
+        });
+      });
+
+      console.log(
+        `Refunded ${refundAmount} credits to user ${ctx.user.id} for failed job ${input.jobId}. New balance: ${newBalance}`
+      );
+
+      return {
+        success: true,
+        refundAmount,
+        newBalance,
+        reason: input.reason || "Video generation failed",
+      };
+    }),
 });

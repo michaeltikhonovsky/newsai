@@ -519,7 +519,7 @@ export default function ProjectConfigPage() {
                   onClick={handleContinue}
                   disabled={!canProceed}
                 >
-                  Continue to Script →
+                  $ Continue to Script →
                 </Button>
               </motion.div>
             </motion.div>

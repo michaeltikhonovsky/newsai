@@ -5,44 +5,21 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
 import { Navbar } from "@/components/Navbar";
 import { toast } from "@/hooks/use-toast";
 import { api } from "@/trpc/react";
-import {
-  ArrowLeft,
-  Settings,
-  FileText,
-  Clock,
-  User,
-  Users,
-  AlertCircle,
-  Loader2,
-  CheckCircle,
-  XCircle,
-  Download,
-  Play,
-  Home,
-  Coins,
-} from "lucide-react";
-
-interface VideoConfig {
-  mode: "single" | "host_guest_host";
-  duration: 30 | 60;
-  selectedHost: string;
-  selectedGuest?: string;
-  singleCharacterText: string;
-  host1Text: string;
-  guest1Text: string;
-  host2Text: string;
-}
-
-interface Character {
-  id: string;
-  name: string;
-  initials: string;
-  avatar: string;
-}
+import { useVideoGeneration } from "@/hooks/useVideoGeneration";
+import { VideoGenerationStatus } from "@/components/VideoGenerationStatus";
+import { ScriptInputForm } from "@/components/ScriptInputForm";
+import type {
+  VideoConfig,
+  Scripts,
+  ScriptField,
+  ProcessingStep,
+  GenerateVideoRequest,
+  Character,
+} from "@/types/video";
+import { ArrowLeft, Settings, Clock, User, Users, Coins } from "lucide-react";
 
 const hosts: Character[] = [
   {
@@ -78,40 +55,6 @@ const CHARACTER_LIMITS = {
   30: 400,
   60: 800,
 };
-
-interface GenerateVideoRequest {
-  mode: "single" | "host_guest_host";
-  selectedHost: string;
-  selectedGuest?: string;
-  duration: 30 | 60;
-  singleCharacterText?: string;
-  host1Text?: string;
-  guest1Text?: string;
-  host2Text?: string;
-}
-
-interface JobStatus {
-  jobId: string;
-  status: "pending" | "queued" | "processing" | "completed" | "failed";
-  progress?: string;
-  error?: string;
-  queuePosition?: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-type ScriptField = keyof {
-  singleCharacterText: string;
-  host1Text: string;
-  guest1Text: string;
-  host2Text: string;
-};
-
-interface ProcessingStep {
-  label: string;
-  completed: boolean;
-  current: boolean;
-}
 
 const getProcessingSteps = (
   currentProgress?: string,
@@ -298,90 +241,23 @@ const getProcessingSteps = (
   });
 };
 
-const ScriptInput = ({
-  field,
-  label,
-  placeholder,
-  description,
-  scripts,
-  handleScriptChange,
-  getCharacterCount,
-  getCharacterLimit,
-  isOverLimit,
-}: {
-  field: ScriptField;
-  label: string;
-  placeholder: string;
-  description: string;
-  scripts: {
-    singleCharacterText: string;
-    host1Text: string;
-    guest1Text: string;
-    host2Text: string;
-  };
-  handleScriptChange: (field: ScriptField, value: string) => void;
-  getCharacterCount: (field: ScriptField) => number;
-  getCharacterLimit: (field: ScriptField) => number;
-  isOverLimit: (field: ScriptField) => boolean;
-}) => {
-  const count = getCharacterCount(field);
-  const limit = getCharacterLimit(field);
-  const isOver = isOverLimit(field);
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <label className="font-mono text-indigo-200 text-sm font-bold">
-          {label}
-        </label>
-        <div
-          className={`text-xs font-mono ${
-            isOver ? "text-red-400" : "text-gray-400"
-          }`}
-        >
-          {count}/{limit}
-        </div>
-      </div>
-      <Textarea
-        placeholder={placeholder}
-        value={scripts[field]}
-        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-          handleScriptChange(field, e.target.value)
-        }
-        className={`min-h-[120px] bg-gray-800/50 border font-mono text-sm resize-none ${
-          isOver
-            ? "border-red-400 focus:border-red-400"
-            : "border-gray-600 focus:border-indigo-400"
-        } text-gray-200 placeholder-gray-500`}
-      />
-      <p className="text-xs text-gray-500">{description}</p>
-      {isOver && (
-        <div className="flex items-center gap-2 text-red-400 text-xs">
-          <AlertCircle className="w-3 h-3" />
-          Script exceeds character limit
-        </div>
-      )}
-    </div>
-  );
-};
-
 export default function ProjectScriptPage() {
   const router = useRouter();
   const [config, setConfig] = useState<VideoConfig | null>(null);
-  const [scripts, setScripts] = useState({
+  const [scripts, setScripts] = useState<Scripts>({
     singleCharacterText: "",
     host1Text: "",
     guest1Text: "",
     host2Text: "",
   });
 
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [jobStatus, setJobStatus] = useState<JobStatus | null>(null);
+  // Use the video generation hook
+  const generation = useVideoGeneration(config, (jobId: string) => {
+    // Save project to localStorage when completed
+    saveCompletedProject(jobId);
+  });
 
-  // tRPC utils for invalidating queries
-  const utils = api.useUtils();
-
-  // credit checks
+  // Credit checks
   const { data: creditCheck } = api.users.checkCredits.useQuery(
     { duration: config?.duration || 30 },
     { enabled: !!config }
@@ -398,12 +274,12 @@ export default function ProjectScriptPage() {
   };
 
   useEffect(() => {
-    // load config from localStorage
+    // Load config from localStorage
     const savedConfig = localStorage.getItem("videoConfig");
     if (savedConfig) {
       const parsedConfig = JSON.parse(savedConfig);
       setConfig(parsedConfig);
-      // load any existing scripts
+      // Load any existing scripts
       setScripts({
         singleCharacterText: parsedConfig.singleCharacterText || "",
         host1Text: parsedConfig.host1Text || "",
@@ -411,117 +287,12 @@ export default function ProjectScriptPage() {
         host2Text: parsedConfig.host2Text || "",
       });
     } else {
-      // redirect back to config if no config found
+      // Redirect back to config if no config found
       router.push("/project/config");
     }
   }, [router]);
 
-  // poll job status
-  const pollJobStatus = async (jobId: string) => {
-    try {
-      const response = await fetch(`/api/status/${jobId}`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const status: JobStatus = await response.json();
-      setJobStatus(status);
-
-      if (
-        status.status === "pending" ||
-        status.status === "queued" ||
-        status.status === "processing"
-      ) {
-        setTimeout(() => pollJobStatus(jobId), 1000);
-      } else if (status.status === "failed") {
-        toast({
-          title: "Video Generation Failed",
-          description: status.error || "Video generation failed",
-          variant: "destructive",
-        });
-        setIsGenerating(false);
-      } else if (status.status === "completed") {
-        // save project to localStorage
-        saveCompletedProject(jobId);
-
-        // invalidate credit queries to refresh the balance
-        await utils.users.checkCredits.invalidate();
-        await utils.users.getCreditBalance.invalidate();
-
-        toast({
-          title: "Video Generated Successfully!",
-          description: "Your news video is ready to download.",
-        });
-        setIsGenerating(false);
-      }
-    } catch (err: any) {
-      console.error("Error polling job status:", err);
-      toast({
-        title: "Connection Error",
-        description: `Failed to check job status: ${err.message}`,
-        variant: "destructive",
-      });
-      setIsGenerating(false);
-    }
-  };
-
-  // generate video
-  const generateVideo = async () => {
-    if (!config) return;
-
-    setIsGenerating(true);
-    setJobStatus(null);
-
-    try {
-      const requestBody: GenerateVideoRequest = {
-        mode: config.mode,
-        selectedHost: config.selectedHost,
-        selectedGuest: config.selectedGuest,
-        duration: config.duration,
-        singleCharacterText:
-          config.mode === "single" ? scripts.singleCharacterText : undefined,
-        host1Text:
-          config.mode === "host_guest_host" ? scripts.host1Text : undefined,
-        guest1Text:
-          config.mode === "host_guest_host" ? scripts.guest1Text : undefined,
-        host2Text:
-          config.mode === "host_guest_host" ? scripts.host2Text : undefined,
-      };
-
-      const response = await fetch(`/api/generate-video`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.error || `HTTP error! status: ${response.status}`
-        );
-      }
-
-      const result = await response.json();
-
-      // invalidate credit queries immediately to reflect the deducted credits
-      await utils.users.checkCredits.invalidate();
-      await utils.users.getCreditBalance.invalidate();
-
-      // start polling for status
-      pollJobStatus(result.jobId);
-    } catch (err: any) {
-      console.error("Error generating video:", err);
-      toast({
-        title: "Failed to Start Generation",
-        description: `Failed to start video generation: ${err.message}`,
-        variant: "destructive",
-      });
-      setIsGenerating(false);
-    }
-  };
-
-  // save completed project to localStorage
+  // Save completed project to localStorage
   const saveCompletedProject = (jobId: string) => {
     if (!config) return;
 
@@ -541,21 +312,21 @@ export default function ProjectScriptPage() {
         host2Text: scripts.host2Text,
       };
 
-      // get existing projects
+      // Get existing projects
       const existingProjects = localStorage.getItem("completedProjects");
       const projects = existingProjects ? JSON.parse(existingProjects) : [];
 
-      // add new project
+      // Add new project
       projects.push(project);
 
-      // keep only the last 5 projects (newest first)
+      // Keep only the last 5 projects (newest first)
       const sortedProjects = projects.sort(
         (a: any, b: any) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
       const limitedProjects = sortedProjects.slice(0, 5);
 
-      // save back to localStorage
+      // Save back to localStorage
       localStorage.setItem(
         "completedProjects",
         JSON.stringify(limitedProjects)
@@ -573,12 +344,12 @@ export default function ProjectScriptPage() {
     }
   };
 
-  // download video
+  // Download video
   const downloadVideo = async () => {
-    if (!jobStatus?.jobId) return;
+    if (!generation.jobStatus?.jobId) return;
 
     try {
-      const response = await fetch(`/api/video/${jobStatus.jobId}`);
+      const response = await fetch(`/api/video/${generation.jobStatus.jobId}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -587,7 +358,7 @@ export default function ProjectScriptPage() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `news-video-${jobStatus.jobId}.mp4`;
+      a.download = `news-video-${generation.jobStatus.jobId}.mp4`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -631,7 +402,7 @@ export default function ProjectScriptPage() {
       return limit;
     }
 
-    // host+guest mode limits
+    // Host+guest mode limits
     if (field === "host1Text" || field === "host2Text") {
       return Math.floor(limit * 0.3); // 30% each for host segments
     } else if (field === "guest1Text") {
@@ -648,7 +419,7 @@ export default function ProjectScriptPage() {
   const canProceed = () => {
     if (!config) return false;
 
-    // check script requirements
+    // Check script requirements
     const scriptsValid =
       config.mode === "single"
         ? scripts.singleCharacterText.trim().length > 0 &&
@@ -660,32 +431,66 @@ export default function ProjectScriptPage() {
           !isOverLimit("guest1Text") &&
           !isOverLimit("host2Text");
 
-    // check credit requirements
+    // Check credit requirements
     const hasEnoughCredits = creditCheck?.hasEnoughCredits ?? false;
 
     return scriptsValid && hasEnoughCredits;
   };
 
-  const isVideoGenerationComplete = () => {
-    const result =
-      jobStatus?.status === "completed" &&
-      jobStatus?.progress &&
-      (jobStatus.progress
+  const isVideoGenerationComplete = (): boolean => {
+    const result = !!(
+      generation.jobStatus?.status === "completed" &&
+      generation.jobStatus?.progress &&
+      (generation.jobStatus.progress
         .toLowerCase()
         .includes("video processing completed successfully") ||
-        jobStatus.progress.toLowerCase().includes("completed successfully") ||
-        jobStatus.progress
+        generation.jobStatus.progress
+          .toLowerCase()
+          .includes("completed successfully") ||
+        generation.jobStatus.progress
           .toLowerCase()
           .includes("video generation completed") ||
-        jobStatus.progress.toLowerCase().includes("generation completed"));
+        generation.jobStatus.progress
+          .toLowerCase()
+          .includes("generation completed"))
+    );
 
     console.log("isVideoGenerationComplete check:", {
-      status: jobStatus?.status,
-      progress: jobStatus?.progress,
+      status: generation.jobStatus?.status,
+      progress: generation.jobStatus?.progress,
       result: result,
     });
 
     return result;
+  };
+
+  // Wrapper for getProcessingSteps to handle type compatibility
+  const getProcessingStepsWrapper = (
+    currentProgress?: string | undefined,
+    config?: any
+  ): ProcessingStep[] => {
+    return getProcessingSteps(currentProgress, config);
+  };
+
+  const handleGenerate = async () => {
+    if (!config) return;
+
+    const requestBody: GenerateVideoRequest = {
+      mode: config.mode,
+      selectedHost: config.selectedHost,
+      selectedGuest: config.selectedGuest,
+      duration: config.duration,
+      singleCharacterText:
+        config.mode === "single" ? scripts.singleCharacterText : undefined,
+      host1Text:
+        config.mode === "host_guest_host" ? scripts.host1Text : undefined,
+      guest1Text:
+        config.mode === "host_guest_host" ? scripts.guest1Text : undefined,
+      host2Text:
+        config.mode === "host_guest_host" ? scripts.host2Text : undefined,
+    };
+
+    await generation.startGeneration(requestBody);
   };
 
   const handleContinue = () => {
@@ -696,11 +501,11 @@ export default function ProjectScriptPage() {
       ...scripts,
     };
 
-    // save updated config
+    // Save updated config
     localStorage.setItem("videoConfig", JSON.stringify(updatedConfig));
 
-    // start video generation
-    generateVideo();
+    // Start video generation
+    handleGenerate();
   };
 
   if (!config) {
@@ -733,7 +538,7 @@ export default function ProjectScriptPage() {
                 variant="ghost"
                 onClick={() => router.back()}
                 className="p-2 hover:bg-gray-800 text-gray-400 hover:text-white"
-                disabled={isGenerating}
+                disabled={generation.isGenerating}
               >
                 <ArrowLeft className="w-5 h-5" />
               </Button>
@@ -746,7 +551,7 @@ export default function ProjectScriptPage() {
           </motion.div>
 
           {/* Show centered layout when generating, grid layout otherwise */}
-          {isGenerating || jobStatus ? (
+          {generation.isGenerating || generation.jobStatus ? (
             /* Centered layout for video generation */
             <div className="max-w-4xl mx-auto">
               <motion.div
@@ -754,497 +559,21 @@ export default function ProjectScriptPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
               >
-                {/* show video preview when fully complete */}
-                {isVideoGenerationComplete() ? (
-                  <Card className="bg-gray-900/60 border border-gray-700">
-                    <CardHeader>
-                      <CardTitle className="font-mono text-gray-200 flex items-center gap-3">
-                        <CheckCircle className="w-5 h-5 text-green-400" />
-                        Video Ready!
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                      <div className="bg-gray-800/50 border border-gray-600 rounded-lg p-6">
-                        <div className="text-center space-y-4">
-                          <div className="bg-black rounded-lg aspect-video border border-gray-700 overflow-hidden">
-                            <video
-                              controls
-                              className="w-full h-full object-cover"
-                              preload="metadata"
-                              onError={() => {
-                                console.error("Video failed to load");
-                              }}
-                            >
-                              <source
-                                src={`/api/video/${jobStatus?.jobId}`}
-                                type="video/mp4"
-                              />
-                              <div className="flex items-center justify-center h-full">
-                                <div className="text-center space-y-3">
-                                  <Play className="w-16 h-16 text-gray-400 mx-auto" />
-                                  <p className="text-gray-400 font-mono">
-                                    Video preview unavailable
-                                  </p>
-                                  <p className="text-sm text-gray-500">
-                                    Your video is ready to download
-                                  </p>
-                                </div>
-                              </div>
-                            </video>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* action buttons */}
-                      <div className="pt-6 border-t border-gray-700">
-                        <div className="flex justify-between items-center gap-4">
-                          <Button
-                            variant="outline"
-                            onClick={() => router.push("/dashboard")}
-                            className="border-gray-600 text-gray-300 hover:bg-gray-800 flex-1"
-                          >
-                            <Home className="w-4 h-4 mr-2" />
-                            Go to Dashboard
-                          </Button>
-
-                          <Button
-                            className="btn-primary px-8 py-3 flex-1"
-                            onClick={downloadVideo}
-                          >
-                            <Download className="w-4 h-4 mr-2" />
-                            Download Video
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ) : isGenerating || jobStatus ? (
-                  <Card className="bg-gray-900/60 border border-gray-700">
-                    <CardHeader>
-                      <CardTitle className="font-mono text-gray-200 flex items-center gap-3">
-                        {jobStatus?.status === "completed" ? (
-                          <CheckCircle className="w-5 h-5 text-green-400" />
-                        ) : jobStatus?.status === "failed" ? (
-                          <XCircle className="w-5 h-5 text-red-400" />
-                        ) : jobStatus?.status === "queued" ? (
-                          <Clock className="w-5 h-5 text-yellow-400" />
-                        ) : (
-                          ""
-                        )}
-                        {jobStatus?.status === "completed"
-                          ? "Video Generation Complete"
-                          : jobStatus?.status === "failed"
-                          ? "Video Generation Failed"
-                          : jobStatus?.status === "queued"
-                          ? `In Queue${
-                              jobStatus.queuePosition
-                                ? ` - Position #${jobStatus.queuePosition}`
-                                : ""
-                            }`
-                          : "Generating Video"}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                      {jobStatus ? (
-                        <div className="space-y-6">
-                          {/* Status Overview */}
-                          <div className="bg-gray-800/50 border border-gray-600 rounded-lg p-6">
-                            <div className="flex items-center justify-between mb-4">
-                              <div className="flex items-center gap-3">
-                                {jobStatus.status === "pending" && (
-                                  <Loader2 className="w-6 h-6 animate-spin text-yellow-400" />
-                                )}
-                                {jobStatus.status === "queued" && (
-                                  <Clock className="w-6 h-6 text-yellow-400" />
-                                )}
-                                {jobStatus.status === "processing" && (
-                                  <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
-                                )}
-                                {jobStatus.status === "completed" && (
-                                  <CheckCircle className="w-6 h-6 text-green-400" />
-                                )}
-                                {jobStatus.status === "failed" && (
-                                  <XCircle className="w-6 h-6 text-red-400" />
-                                )}
-                                <div>
-                                  <h3 className="text-lg font-semibold text-gray-200 capitalize">
-                                    {jobStatus.status}
-                                    {jobStatus.status === "queued" &&
-                                      jobStatus.queuePosition && (
-                                        <span className="ml-2 text-yellow-400 font-normal">
-                                          - Position #{jobStatus.queuePosition}
-                                        </span>
-                                      )}
-                                  </h3>
-                                  <p className="text-sm text-gray-400">
-                                    Job ID: {jobStatus.jobId}
-                                  </p>
-                                </div>
-                              </div>
-                              <div className="text-right text-sm text-gray-400">
-                                <p>
-                                  Started:{" "}
-                                  {new Date(
-                                    jobStatus.createdAt
-                                  ).toLocaleString()}
-                                </p>
-                                <p>
-                                  Updated:{" "}
-                                  {new Date(
-                                    jobStatus.updatedAt
-                                  ).toLocaleString()}
-                                </p>
-                              </div>
-                            </div>
-
-                            {/* Current Progress */}
-                            {(jobStatus.progress ||
-                              jobStatus.status === "queued") && (
-                              <div className="bg-gray-700/50 border border-gray-600 rounded-lg p-4 mb-4">
-                                <div className="flex items-start gap-3">
-                                  <div className="flex-shrink-0 mt-1">
-                                    {jobStatus.status === "processing" && (
-                                      <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
-                                    )}
-                                    {jobStatus.status === "pending" && (
-                                      <Clock className="w-4 h-4 text-yellow-400" />
-                                    )}
-                                    {jobStatus.status === "queued" && (
-                                      <Clock className="w-4 h-4 text-yellow-400" />
-                                    )}
-                                  </div>
-                                  <div className="flex-1">
-                                    <h4 className="font-mono text-gray-200 font-medium mb-2">
-                                      {jobStatus.status === "queued"
-                                        ? "Queue Status:"
-                                        : "Current Progress:"}
-                                    </h4>
-                                    {jobStatus.status === "queued" ? (
-                                      <div className="space-y-2">
-                                        <p className="text-gray-300 break-words">
-                                          {jobStatus.progress ||
-                                            "Waiting in queue for processing..."}
-                                        </p>
-                                        {jobStatus.queuePosition && (
-                                          <div className="bg-yellow-500/10 border border-yellow-400/30 rounded-lg p-3">
-                                            <div className="flex items-center gap-2">
-                                              <Clock className="w-4 h-4 text-yellow-400" />
-                                              <span className="text-yellow-200 font-medium">
-                                                Queue Position: #
-                                                {jobStatus.queuePosition}
-                                              </span>
-                                            </div>
-                                            <p className="text-xs text-yellow-300 mt-1">
-                                              Your video will start processing
-                                              when it reaches the front of the
-                                              queue.
-                                            </p>
-                                          </div>
-                                        )}
-                                      </div>
-                                    ) : (
-                                      <p className="text-gray-300 break-words mb-3">
-                                        {jobStatus.progress}
-                                      </p>
-                                    )}
-
-                                    {/* character context */}
-                                    {config && (
-                                      <div className="flex gap-2 flex-wrap">
-                                        {config.mode === "single" ? (
-                                          <span className="text-indigo-300 bg-indigo-500/20 px-3 py-1 rounded-full text-sm">
-                                            {getHostName(config.selectedHost)}
-                                          </span>
-                                        ) : (
-                                          <>
-                                            <span className="text-blue-300 bg-blue-500/20 px-3 py-1 rounded-full text-sm">
-                                              Host:{" "}
-                                              {getHostName(config.selectedHost)}
-                                            </span>
-                                            {config.selectedGuest && (
-                                              <span className="text-green-300 bg-green-500/20 px-3 py-1 rounded-full text-sm">
-                                                Guest:{" "}
-                                                {getGuestName(
-                                                  config.selectedGuest
-                                                )}
-                                              </span>
-                                            )}
-                                          </>
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-
-                            {/* error display */}
-                            {jobStatus.status === "failed" &&
-                              jobStatus.error && (
-                                <div className="bg-red-500/10 border border-red-400/30 rounded-lg p-4 mb-4">
-                                  <div className="flex items-start gap-3">
-                                    <XCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-                                    <div>
-                                      <h4 className="font-mono text-red-300 font-medium mb-2">
-                                        Error Details:
-                                      </h4>
-                                      <p className="text-red-200 break-words">
-                                        {jobStatus.error}
-                                      </p>
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
-                          </div>
-
-                          {/* processing steps */}
-                          {(jobStatus.status === "queued" ||
-                            jobStatus.status === "processing" ||
-                            jobStatus.status === "completed") && (
-                            <div className="bg-gray-800/50 border border-gray-600 rounded-lg p-6">
-                              <h4 className="font-mono text-gray-200 mb-4 flex items-center gap-2">
-                                <Settings className="w-4 h-4" />
-                                Processing Pipeline
-                              </h4>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                {getProcessingSteps(
-                                  jobStatus.progress,
-                                  config || undefined
-                                ).map((step, index) => (
-                                  <div
-                                    key={index}
-                                    className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-300 ${
-                                      step.completed
-                                        ? "bg-green-500/20 border border-green-400/30 text-green-300"
-                                        : step.current
-                                        ? "bg-blue-500/20 border border-blue-400/30 text-blue-300"
-                                        : "bg-gray-700/50 border border-gray-600 text-gray-500"
-                                    }`}
-                                  >
-                                    {step.completed ? (
-                                      <CheckCircle className="w-4 h-4 flex-shrink-0" />
-                                    ) : step.current ? (
-                                      <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
-                                    ) : (
-                                      <div className="w-4 h-4 rounded-full border-2 border-current flex-shrink-0" />
-                                    )}
-                                    <span className="font-mono text-sm font-medium">
-                                      {step.label}
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* action buttons */}
-                          <div className="pt-6 border-t border-gray-700">
-                            <div className="flex justify-between items-center">
-                              <Button
-                                variant="outline"
-                                onClick={() => {
-                                  setIsGenerating(false);
-                                  setJobStatus(null);
-                                }}
-                                className="border-gray-600 text-gray-300 hover:bg-gray-800"
-                                disabled={
-                                  isGenerating &&
-                                  jobStatus?.status === "processing"
-                                }
-                              >
-                                <ArrowLeft className="w-4 h-4 mr-2" />
-                                {jobStatus?.status === "completed"
-                                  ? "Create New Video"
-                                  : "Back to Script"}
-                              </Button>
-
-                              {jobStatus?.status === "completed" && (
-                                <Button
-                                  className="btn-primary px-8 py-3"
-                                  onClick={downloadVideo}
-                                >
-                                  <Download className="w-4 h-4 mr-2" />
-                                  Download Video
-                                </Button>
-                              )}
-
-                              {jobStatus?.status === "failed" && (
-                                <Button
-                                  className="btn-primary px-8 py-3"
-                                  onClick={generateVideo}
-                                  disabled={isGenerating}
-                                >
-                                  <Loader2
-                                    className={`w-4 h-4 mr-2 ${
-                                      isGenerating ? "animate-spin" : ""
-                                    }`}
-                                  />
-                                  Retry Generation
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        /* Initial loading state when generation just started */
-                        <div className="space-y-6">
-                          <div className="bg-gray-800/50 border border-gray-600 rounded-lg p-6">
-                            <div className="flex items-center justify-between mb-4">
-                              <div className="flex items-center gap-3">
-                                <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
-                                <div>
-                                  <h3 className="text-lg font-semibold text-gray-200">
-                                    Starting Generation
-                                  </h3>
-                                  <p className="text-sm text-gray-400">
-                                    Initializing video generation process...
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* character context */}
-                            {config && (
-                              <div className="flex gap-2 flex-wrap">
-                                {config.mode === "single" ? (
-                                  <span className="text-indigo-300 bg-indigo-500/20 px-3 py-1 rounded-full text-sm">
-                                    {getHostName(config.selectedHost)}
-                                  </span>
-                                ) : (
-                                  <>
-                                    <span className="text-blue-300 bg-blue-500/20 px-3 py-1 rounded-full text-sm">
-                                      Host: {getHostName(config.selectedHost)}
-                                    </span>
-                                    {config.selectedGuest && (
-                                      <span className="text-green-300 bg-green-500/20 px-3 py-1 rounded-full text-sm">
-                                        Guest:{" "}
-                                        {getGuestName(config.selectedGuest)}
-                                      </span>
-                                    )}
-                                  </>
-                                )}
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Initial processing steps */}
-                          <div className="bg-gray-800/50 border border-gray-600 rounded-lg p-6">
-                            <h4 className="font-mono text-gray-200 mb-4 flex items-center gap-2">
-                              <Settings className="w-4 h-4" />
-                              Processing Pipeline
-                            </h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                              {getProcessingSteps(
-                                undefined,
-                                config || undefined
-                              ).map((step, index) => (
-                                <div
-                                  key={index}
-                                  className="flex items-center gap-3 p-3 rounded-lg bg-gray-700/50 border border-gray-600 text-gray-500"
-                                >
-                                  <div className="w-4 h-4 rounded-full border-2 border-current flex-shrink-0" />
-                                  <span className="font-mono text-sm font-medium">
-                                    {step.label}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ) : (
-                  /* original script input */
-                  <Card className="bg-gray-900/60 border border-gray-700">
-                    <CardHeader>
-                      <CardTitle className="font-mono text-gray-200 flex items-center gap-3">
-                        <FileText className="w-5 h-5" />
-                        News Script
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                      {config.mode === "single" ? (
-                        <ScriptInput
-                          field="singleCharacterText"
-                          label="HOST SCRIPT"
-                          placeholder="Enter the complete news script for your anchor..."
-                          description="The entire news segment will be presented by a single host."
-                          scripts={scripts}
-                          handleScriptChange={handleScriptChange}
-                          getCharacterCount={getCharacterCount}
-                          getCharacterLimit={getCharacterLimit}
-                          isOverLimit={isOverLimit}
-                        />
-                      ) : (
-                        <div className="space-y-6">
-                          <ScriptInput
-                            field="host1Text"
-                            label="HOST INTRODUCTION"
-                            placeholder="Good evening, I'm here with..."
-                            description="Host introduces the topic and guest (~30% of total time)."
-                            scripts={scripts}
-                            handleScriptChange={handleScriptChange}
-                            getCharacterCount={getCharacterCount}
-                            getCharacterLimit={getCharacterLimit}
-                            isOverLimit={isOverLimit}
-                          />
-
-                          <ScriptInput
-                            field="guest1Text"
-                            label="GUEST SEGMENT"
-                            placeholder="Thank you for having me. Today I want to discuss..."
-                            description="Guest presents their main content (~40% of total time)."
-                            scripts={scripts}
-                            handleScriptChange={handleScriptChange}
-                            getCharacterCount={getCharacterCount}
-                            getCharacterLimit={getCharacterLimit}
-                            isOverLimit={isOverLimit}
-                          />
-
-                          <ScriptInput
-                            field="host2Text"
-                            label="HOST CONCLUSION"
-                            placeholder="Thank you for that insight. That's all for today..."
-                            description="Host wraps up the segment (~30% of total time)."
-                            scripts={scripts}
-                            handleScriptChange={handleScriptChange}
-                            getCharacterCount={getCharacterCount}
-                            getCharacterLimit={getCharacterLimit}
-                            isOverLimit={isOverLimit}
-                          />
-                        </div>
-                      )}
-
-                      {/* continue button */}
-                      <div className="pt-6 border-t border-gray-700">
-                        <div className="flex justify-between items-center">
-                          <div className="text-sm text-gray-400">
-                            {canProceed()
-                              ? "✅ Script and credits ready for generation"
-                              : creditCheck && !creditCheck.hasEnoughCredits
-                              ? "⚠️ Insufficient credits - purchase more to continue"
-                              : "⚠️ Complete all script fields to continue"}
-                          </div>
-                          <Button
-                            className="btn-primary px-8 py-3"
-                            onClick={handleContinue}
-                            disabled={!canProceed() || isGenerating}
-                          >
-                            {isGenerating ? (
-                              <>
-                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                Generating...
-                              </>
-                            ) : (
-                              "Generate Video →"
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
+                <VideoGenerationStatus
+                  jobStatus={generation.jobStatus}
+                  config={config}
+                  hasRefunded={generation.hasRefunded}
+                  consecutiveErrors={generation.consecutiveErrors}
+                  currentJobId={generation.currentJobId}
+                  isGenerating={generation.isGenerating}
+                  onBack={() => router.push("/dashboard")}
+                  onDownload={downloadVideo}
+                  onReset={generation.resetGeneration}
+                  getHostName={getHostName}
+                  getGuestName={getGuestName}
+                  getProcessingSteps={getProcessingStepsWrapper}
+                  isVideoGenerationComplete={() => isVideoGenerationComplete()}
+                />
               </motion.div>
             </div>
           ) : (
@@ -1367,111 +696,33 @@ export default function ProjectScriptPage() {
                         variant="outline"
                         onClick={() => router.push("/project/config")}
                         className="border-gray-600 text-gray-300 hover:bg-gray-800 w-full"
-                        disabled={isGenerating}
+                        disabled={generation.isGenerating}
                       >
-                        Modify Config
+                        $ Modify Config
                       </Button>
                     </div>
                   </CardContent>
                 </Card>
               </motion.div>
 
-              {/* script input */}
+              {/* Script input */}
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.5, delay: 0.4 }}
                 className="lg:col-span-2"
               >
-                {/* original script input */}
-                <Card className="bg-gray-900/60 border border-gray-700">
-                  <CardHeader>
-                    <CardTitle className="font-mono text-gray-200 flex items-center gap-3">
-                      <FileText className="w-5 h-5" />
-                      News Script
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    {config.mode === "single" ? (
-                      <ScriptInput
-                        field="singleCharacterText"
-                        label="HOST SCRIPT"
-                        placeholder="Enter the complete news script for your anchor..."
-                        description="The entire news segment will be presented by a single host."
-                        scripts={scripts}
-                        handleScriptChange={handleScriptChange}
-                        getCharacterCount={getCharacterCount}
-                        getCharacterLimit={getCharacterLimit}
-                        isOverLimit={isOverLimit}
-                      />
-                    ) : (
-                      <div className="space-y-6">
-                        <ScriptInput
-                          field="host1Text"
-                          label="HOST INTRODUCTION"
-                          placeholder="Good evening, I'm here with..."
-                          description="Host introduces the topic and guest (~30% of total time)."
-                          scripts={scripts}
-                          handleScriptChange={handleScriptChange}
-                          getCharacterCount={getCharacterCount}
-                          getCharacterLimit={getCharacterLimit}
-                          isOverLimit={isOverLimit}
-                        />
-
-                        <ScriptInput
-                          field="guest1Text"
-                          label="GUEST SEGMENT"
-                          placeholder="Thank you for having me. Today I want to discuss..."
-                          description="Guest presents their main content (~40% of total time)."
-                          scripts={scripts}
-                          handleScriptChange={handleScriptChange}
-                          getCharacterCount={getCharacterCount}
-                          getCharacterLimit={getCharacterLimit}
-                          isOverLimit={isOverLimit}
-                        />
-
-                        <ScriptInput
-                          field="host2Text"
-                          label="HOST CONCLUSION"
-                          placeholder="Thank you for that insight. That's all for today..."
-                          description="Host wraps up the segment (~30% of total time)."
-                          scripts={scripts}
-                          handleScriptChange={handleScriptChange}
-                          getCharacterCount={getCharacterCount}
-                          getCharacterLimit={getCharacterLimit}
-                          isOverLimit={isOverLimit}
-                        />
-                      </div>
-                    )}
-
-                    {/* continue button */}
-                    <div className="pt-6 border-t border-gray-700">
-                      <div className="flex justify-between items-center">
-                        <div className="text-sm text-gray-400">
-                          {canProceed()
-                            ? "✅ Script and credits ready for generation"
-                            : creditCheck && !creditCheck.hasEnoughCredits
-                            ? "⚠️ Insufficient credits - purchase more to continue"
-                            : "⚠️ Complete all script fields to continue"}
-                        </div>
-                        <Button
-                          className="btn-primary px-8 py-3"
-                          onClick={handleContinue}
-                          disabled={!canProceed() || isGenerating}
-                        >
-                          {isGenerating ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              Generating...
-                            </>
-                          ) : (
-                            "Generate Video →"
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                <ScriptInputForm
+                  config={config}
+                  scripts={scripts}
+                  isGenerating={generation.isGenerating}
+                  canProceed={canProceed()}
+                  onScriptChange={handleScriptChange}
+                  onGenerate={handleContinue}
+                  getCharacterCount={getCharacterCount}
+                  getCharacterLimit={getCharacterLimit}
+                  isOverLimit={isOverLimit}
+                />
               </motion.div>
             </div>
           )}

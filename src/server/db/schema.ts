@@ -37,3 +37,22 @@ export const users = createTable(
   }),
   (t) => [index("clerk_id_idx").on(t.clerkId), index("email_idx").on(t.email)]
 );
+
+export const creditRefunds = createTable(
+  "credit_refunds",
+  (d) => ({
+    id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
+    userId: d
+      .integer("user_id")
+      .notNull()
+      .references(() => users.id),
+    jobId: d.text("job_id").notNull().unique(),
+    refundAmount: d.integer("refund_amount").notNull(),
+    reason: d.text("reason"),
+    createdAt: d
+      .timestamp("created_at", { withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+  }),
+  (t) => [index("user_id_idx").on(t.userId), index("job_id_idx").on(t.jobId)]
+);
