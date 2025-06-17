@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Navbar } from "@/components/Navbar";
 import { toast } from "@/hooks/use-toast";
+import { CreditDisplay } from "@/components/CreditDisplay";
+import { api } from "@/trpc/react";
 import {
   ArrowLeft,
   Settings,
@@ -22,6 +24,7 @@ import {
   Download,
   Play,
   Home,
+  Coins,
 } from "lucide-react";
 
 interface VideoConfig {
@@ -81,6 +84,7 @@ interface GenerateVideoRequest {
   mode: "single" | "host_guest_host";
   selectedHost: string;
   selectedGuest?: string;
+  duration: 30 | 60;
   singleCharacterText?: string;
   host1Text?: string;
   guest1Text?: string;
@@ -95,8 +99,6 @@ interface JobStatus {
   createdAt: string;
   updatedAt: string;
 }
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 type ScriptField = keyof {
   singleCharacterText: string;
@@ -373,9 +375,15 @@ export default function ProjectScriptPage() {
     host2Text: "",
   });
 
-  // API state
   const [isGenerating, setIsGenerating] = useState(false);
   const [jobStatus, setJobStatus] = useState<JobStatus | null>(null);
+
+  // credit checks
+  const { data: creditData } = api.video.getCreditBalance.useQuery();
+  const { data: creditCheck } = api.video.checkCredits.useQuery(
+    { duration: config?.duration || 30 },
+    { enabled: !!config }
+  );
 
   const getHostName = (hostId: string) => {
     const host = hosts.find((h) => h.id === hostId);
@@ -388,12 +396,12 @@ export default function ProjectScriptPage() {
   };
 
   useEffect(() => {
-    // Load config from localStorage
+    // load config from localStorage
     const savedConfig = localStorage.getItem("videoConfig");
     if (savedConfig) {
       const parsedConfig = JSON.parse(savedConfig);
       setConfig(parsedConfig);
-      // Load any existing scripts
+      // load any existing scripts
       setScripts({
         singleCharacterText: parsedConfig.singleCharacterText || "",
         host1Text: parsedConfig.host1Text || "",
@@ -401,24 +409,23 @@ export default function ProjectScriptPage() {
         host2Text: parsedConfig.host2Text || "",
       });
     } else {
-      // Redirect back to config if no config found
+      // redirect back to config if no config found
       router.push("/project/config");
     }
   }, [router]);
 
-  // Poll job status
+  // poll job status
   const pollJobStatus = async (jobId: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/status/${jobId}`);
+      const response = await fetch(`/api/status/${jobId}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const status: JobStatus = await response.json();
       setJobStatus(status);
 
-      // Continue polling if job is still in progress
       if (status.status === "pending" || status.status === "processing") {
-        setTimeout(() => pollJobStatus(jobId), 1000); // Poll every 1 second for more responsive updates
+        setTimeout(() => pollJobStatus(jobId), 1000);
       } else if (status.status === "failed") {
         toast({
           title: "Video Generation Failed",
@@ -427,7 +434,7 @@ export default function ProjectScriptPage() {
         });
         setIsGenerating(false);
       } else if (status.status === "completed") {
-        // Save project to localStorage
+        // save project to localStorage
         saveCompletedProject(jobId);
 
         toast({
@@ -447,7 +454,7 @@ export default function ProjectScriptPage() {
     }
   };
 
-  // Generate video
+  // generate video
   const generateVideo = async () => {
     if (!config) return;
 
@@ -459,6 +466,7 @@ export default function ProjectScriptPage() {
         mode: config.mode,
         selectedHost: config.selectedHost,
         selectedGuest: config.selectedGuest,
+        duration: config.duration,
         singleCharacterText:
           config.mode === "single" ? scripts.singleCharacterText : undefined,
         host1Text:
@@ -469,7 +477,7 @@ export default function ProjectScriptPage() {
           config.mode === "host_guest_host" ? scripts.host2Text : undefined,
       };
 
-      const response = await fetch(`${API_BASE_URL}/generate-video`, {
+      const response = await fetch(`/api/generate-video`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -486,7 +494,7 @@ export default function ProjectScriptPage() {
 
       const result = await response.json();
 
-      // Start polling for status updates
+      // start polling for status
       pollJobStatus(result.jobId);
     } catch (err: any) {
       console.error("Error generating video:", err);
@@ -499,7 +507,7 @@ export default function ProjectScriptPage() {
     }
   };
 
-  // Save completed project to localStorage
+  // save completed project to localStorage
   const saveCompletedProject = (jobId: string) => {
     if (!config) return;
 
@@ -519,14 +527,14 @@ export default function ProjectScriptPage() {
         host2Text: scripts.host2Text,
       };
 
-      // Get existing projects
+      // get existing projects
       const existingProjects = localStorage.getItem("completedProjects");
       const projects = existingProjects ? JSON.parse(existingProjects) : [];
 
-      // Add new project
+      // add new project
       projects.push(project);
 
-      // Save back to localStorage
+      // save back to localStorage
       localStorage.setItem("completedProjects", JSON.stringify(projects));
 
       console.log("Project saved to localStorage:", project);
@@ -541,12 +549,12 @@ export default function ProjectScriptPage() {
     }
   };
 
-  // Download video
+  // download video
   const downloadVideo = async () => {
     if (!jobStatus?.jobId) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/video/${jobStatus.jobId}`);
+      const response = await fetch(`/api/video/${jobStatus.jobId}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -573,7 +581,6 @@ export default function ProjectScriptPage() {
   const handleScriptChange = (field: ScriptField, value: string) => {
     const limit = CHARACTER_LIMITS[config?.duration || 30];
 
-    // For host+guest mode, split the character limit between segments
     let fieldLimit = limit;
     if (config?.mode === "host_guest_host") {
       if (field === "host1Text" || field === "host2Text") {
@@ -600,7 +607,7 @@ export default function ProjectScriptPage() {
       return limit;
     }
 
-    // Host+guest mode limits
+    // host+guest mode limits
     if (field === "host1Text" || field === "host2Text") {
       return Math.floor(limit * 0.3); // 30% each for host segments
     } else if (field === "guest1Text") {
@@ -617,21 +624,22 @@ export default function ProjectScriptPage() {
   const canProceed = () => {
     if (!config) return false;
 
-    if (config.mode === "single") {
-      return (
-        scripts.singleCharacterText.trim().length > 0 &&
-        !isOverLimit("singleCharacterText")
-      );
-    } else {
-      return (
-        scripts.host1Text.trim().length > 0 &&
-        scripts.guest1Text.trim().length > 0 &&
-        scripts.host2Text.trim().length > 0 &&
-        !isOverLimit("host1Text") &&
-        !isOverLimit("guest1Text") &&
-        !isOverLimit("host2Text")
-      );
-    }
+    // check script requirements
+    const scriptsValid =
+      config.mode === "single"
+        ? scripts.singleCharacterText.trim().length > 0 &&
+          !isOverLimit("singleCharacterText")
+        : scripts.host1Text.trim().length > 0 &&
+          scripts.guest1Text.trim().length > 0 &&
+          scripts.host2Text.trim().length > 0 &&
+          !isOverLimit("host1Text") &&
+          !isOverLimit("guest1Text") &&
+          !isOverLimit("host2Text");
+
+    // check credit requirements
+    const hasEnoughCredits = creditCheck?.hasEnoughCredits ?? false;
+
+    return scriptsValid && hasEnoughCredits;
   };
 
   const isVideoGenerationComplete = () => {
@@ -647,7 +655,6 @@ export default function ProjectScriptPage() {
           .includes("video generation completed") ||
         jobStatus.progress.toLowerCase().includes("generation completed"));
 
-    // Debug logging
     console.log("isVideoGenerationComplete check:", {
       status: jobStatus?.status,
       progress: jobStatus?.progress,
@@ -665,10 +672,10 @@ export default function ProjectScriptPage() {
       ...scripts,
     };
 
-    // Save updated config
+    // save updated config
     localStorage.setItem("videoConfig", JSON.stringify(updatedConfig));
 
-    // Start video generation
+    // start video generation
     generateVideo();
   };
 
@@ -800,6 +807,32 @@ export default function ProjectScriptPage() {
                     </div>
                   </div>
 
+                  <div className="bg-yellow-500/10 border border-yellow-400/30 rounded-lg p-4">
+                    <h4 className="font-mono text-yellow-200 mb-2 text-sm flex items-center gap-2">
+                      <Coins className="w-4 h-4" />
+                      Credit Requirements:
+                    </h4>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-yellow-300">Cost:</span>
+                        <span className="text-yellow-200 font-bold">
+                          {creditCheck?.requiredCredits || 0} credits
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-yellow-300">Your Balance:</span>
+                        <span className="text-yellow-200 font-bold">
+                          {creditCheck?.userCredits || 0} credits
+                        </span>
+                      </div>
+                      {creditCheck && !creditCheck.hasEnoughCredits && (
+                        <div className="text-xs text-red-400 font-mono">
+                          ⚠️ Need {creditCheck.shortfall} more credits
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="text-center">
                     <Button
                       variant="outline"
@@ -814,14 +847,14 @@ export default function ProjectScriptPage() {
               </Card>
             </motion.div>
 
-            {/* Script Input or Generation Status */}
+            {/* script input or generation status */}
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5, delay: 0.4 }}
               className="lg:col-span-2"
             >
-              {/* Show Video Preview when fully complete */}
+              {/* show video preview when fully complete */}
               {isVideoGenerationComplete() ? (
                 <Card className="bg-gray-900/60 border border-gray-700">
                   <CardHeader>
@@ -843,7 +876,7 @@ export default function ProjectScriptPage() {
                             }}
                           >
                             <source
-                              src={`${API_BASE_URL}/video/${jobStatus?.jobId}`}
+                              src={`/api/video/${jobStatus?.jobId}`}
                               type="video/mp4"
                             />
                             <div className="flex items-center justify-center h-full">
@@ -862,7 +895,7 @@ export default function ProjectScriptPage() {
                       </div>
                     </div>
 
-                    {/* Action Buttons */}
+                    {/* action buttons */}
                     <div className="pt-6 border-t border-gray-700">
                       <div className="flex justify-between items-center gap-4">
                         <Button
@@ -963,7 +996,7 @@ export default function ProjectScriptPage() {
                                     {jobStatus.progress}
                                   </p>
 
-                                  {/* Character Context */}
+                                  {/* character context */}
                                   {config && (
                                     <div className="flex gap-2 flex-wrap">
                                       {config.mode === "single" ? (
@@ -993,7 +1026,7 @@ export default function ProjectScriptPage() {
                             </div>
                           )}
 
-                          {/* Error Display */}
+                          {/* error display */}
                           {jobStatus.status === "failed" && jobStatus.error && (
                             <div className="bg-red-500/10 border border-red-400/30 rounded-lg p-4 mb-4">
                               <div className="flex items-start gap-3">
@@ -1011,7 +1044,7 @@ export default function ProjectScriptPage() {
                           )}
                         </div>
 
-                        {/* Processing Steps */}
+                        {/* processing steps */}
                         {(jobStatus.status === "processing" ||
                           jobStatus.status === "completed") && (
                           <div className="bg-gray-800/50 border border-gray-600 rounded-lg p-6">
@@ -1050,7 +1083,7 @@ export default function ProjectScriptPage() {
                           </div>
                         )}
 
-                        {/* Action Buttons */}
+                        {/* action buttons */}
                         <div className="pt-6 border-t border-gray-700">
                           <div className="flex justify-between items-center">
                             <Button
@@ -1102,7 +1135,7 @@ export default function ProjectScriptPage() {
                   </CardContent>
                 </Card>
               ) : (
-                /* Original Script Input */
+                /* original script input */
                 <Card className="bg-gray-900/60 border border-gray-700">
                   <CardHeader>
                     <CardTitle className="font-mono text-gray-200 flex items-center gap-3">
@@ -1163,12 +1196,14 @@ export default function ProjectScriptPage() {
                       </div>
                     )}
 
-                    {/* Continue Button */}
+                    {/* continue button */}
                     <div className="pt-6 border-t border-gray-700">
                       <div className="flex justify-between items-center">
                         <div className="text-sm text-gray-400">
                           {canProceed()
-                            ? "✅ Script ready for generation"
+                            ? "✅ Script and credits ready for generation"
+                            : creditCheck && !creditCheck.hasEnoughCredits
+                            ? "⚠️ Insufficient credits - purchase more to continue"
                             : "⚠️ Complete all script fields to continue"}
                         </div>
                         <Button

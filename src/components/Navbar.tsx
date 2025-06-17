@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { AuthDialog } from "@/components/auth/AuthDialog";
 import { UserProfileDropdown } from "@/components/auth/UserProfileDropdown";
+import { CreditDisplay } from "@/components/CreditDisplay";
 import { useUser } from "@clerk/nextjs";
 
 export function Navbar() {
@@ -26,19 +27,25 @@ export function Navbar() {
           <IoVideocamOutline style={{ height: 32, width: 32 }} />
           NewsAI
         </Link>
-        <div className="flex gap-2">
-          {isLoaded && isSignedIn ? (
-            <UserProfileDropdown />
-          ) : (
-            <Dialog open={isAuthDialogOpen} onOpenChange={setIsAuthDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="hover:text-accent transition-colors">
-                  Sign In
-                </Button>
-              </DialogTrigger>
-              <AuthDialog />
-            </Dialog>
-          )}
+        <div className="flex items-center gap-4">
+          {isLoaded && isSignedIn && <CreditDisplay />}
+          <div className="flex gap-2">
+            {isLoaded && isSignedIn ? (
+              <UserProfileDropdown />
+            ) : (
+              <Dialog
+                open={isAuthDialogOpen}
+                onOpenChange={setIsAuthDialogOpen}
+              >
+                <DialogTrigger asChild>
+                  <Button className="hover:text-accent transition-colors">
+                    Sign In
+                  </Button>
+                </DialogTrigger>
+                <AuthDialog />
+              </Dialog>
+            )}
+          </div>
         </div>
       </div>
     </motion.header>

@@ -93,18 +93,18 @@ export default function Home() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.7 }}
           >
-            <div
-              className="relative w-full max-w-lg aspect-video rounded-lg border border-gray-800 flex flex-col items-center justify-center"
-              style={{ background: "#1A1A1A" }}
-            >
-              <div className="text-center">
-                <div className="flex justify-center mb-4">
-                  <IoVideocamOutline style={{ height: 48, width: 48 }} />
-                </div>
-                <h3 className="text-xl font-bold">LIVE DEMO</h3>
-                <p className="mt-2" style={{ color: "#AAAAAA" }}>
-                  Click to play sample
-                </p>
+            <div className="relative w-full max-w-lg aspect-video rounded-lg border border-gray-800 overflow-hidden">
+              <video
+                className="w-full h-full object-cover"
+                controls
+                preload="metadata"
+                poster=""
+              >
+                <source src="/demos/demo1.mp4" type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
+              <div className="absolute top-4 left-4 bg-black/70 px-3 py-1 rounded-md">
+                <h3 className="text-sm font-bold text-white">NEWSAI DEMO</h3>
               </div>
             </div>
           </motion.div>
