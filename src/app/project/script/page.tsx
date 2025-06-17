@@ -92,9 +92,10 @@ interface GenerateVideoRequest {
 
 interface JobStatus {
   jobId: string;
-  status: "pending" | "processing" | "completed" | "failed";
+  status: "pending" | "queued" | "processing" | "completed" | "failed";
   progress?: string;
   error?: string;
+  queuePosition?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -425,7 +426,11 @@ export default function ProjectScriptPage() {
       const status: JobStatus = await response.json();
       setJobStatus(status);
 
-      if (status.status === "pending" || status.status === "processing") {
+      if (
+        status.status === "pending" ||
+        status.status === "queued" ||
+        status.status === "processing"
+      ) {
         setTimeout(() => pollJobStatus(jobId), 1000);
       } else if (status.status === "failed") {
         toast({
@@ -821,6 +826,8 @@ export default function ProjectScriptPage() {
                           <CheckCircle className="w-5 h-5 text-green-400" />
                         ) : jobStatus?.status === "failed" ? (
                           <XCircle className="w-5 h-5 text-red-400" />
+                        ) : jobStatus?.status === "queued" ? (
+                          <Clock className="w-5 h-5 text-yellow-400" />
                         ) : (
                           ""
                         )}
@@ -828,6 +835,12 @@ export default function ProjectScriptPage() {
                           ? "Video Generation Complete"
                           : jobStatus?.status === "failed"
                           ? "Video Generation Failed"
+                          : jobStatus?.status === "queued"
+                          ? `In Queue${
+                              jobStatus.queuePosition
+                                ? ` - Position #${jobStatus.queuePosition}`
+                                : ""
+                            }`
                           : "Generating Video"}
                       </CardTitle>
                     </CardHeader>
@@ -841,6 +854,12 @@ export default function ProjectScriptPage() {
                                 {jobStatus.status === "pending" && (
                                   <Loader2 className="w-6 h-6 animate-spin text-yellow-400" />
                                 )}
+                                {jobStatus.status === "queued" && (
+                                  <Clock className="w-6 h-6 text-yellow-400" />
+                                )}
+                                {jobStatus.status === "processing" && (
+                                  <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
+                                )}
                                 {jobStatus.status === "completed" && (
                                   <CheckCircle className="w-6 h-6 text-green-400" />
                                 )}
@@ -850,6 +869,12 @@ export default function ProjectScriptPage() {
                                 <div>
                                   <h3 className="text-lg font-semibold text-gray-200 capitalize">
                                     {jobStatus.status}
+                                    {jobStatus.status === "queued" &&
+                                      jobStatus.queuePosition && (
+                                        <span className="ml-2 text-yellow-400 font-normal">
+                                          - Position #{jobStatus.queuePosition}
+                                        </span>
+                                      )}
                                   </h3>
                                   <p className="text-sm text-gray-400">
                                     Job ID: {jobStatus.jobId}
@@ -873,7 +898,8 @@ export default function ProjectScriptPage() {
                             </div>
 
                             {/* Current Progress */}
-                            {jobStatus.progress && (
+                            {(jobStatus.progress ||
+                              jobStatus.status === "queued") && (
                               <div className="bg-gray-700/50 border border-gray-600 rounded-lg p-4 mb-4">
                                 <div className="flex items-start gap-3">
                                   <div className="flex-shrink-0 mt-1">
@@ -883,14 +909,44 @@ export default function ProjectScriptPage() {
                                     {jobStatus.status === "pending" && (
                                       <Clock className="w-4 h-4 text-yellow-400" />
                                     )}
+                                    {jobStatus.status === "queued" && (
+                                      <Clock className="w-4 h-4 text-yellow-400" />
+                                    )}
                                   </div>
                                   <div className="flex-1">
                                     <h4 className="font-mono text-gray-200 font-medium mb-2">
-                                      Current Progress:
+                                      {jobStatus.status === "queued"
+                                        ? "Queue Status:"
+                                        : "Current Progress:"}
                                     </h4>
-                                    <p className="text-gray-300 break-words mb-3">
-                                      {jobStatus.progress}
-                                    </p>
+                                    {jobStatus.status === "queued" ? (
+                                      <div className="space-y-2">
+                                        <p className="text-gray-300 break-words">
+                                          {jobStatus.progress ||
+                                            "Waiting in queue for processing..."}
+                                        </p>
+                                        {jobStatus.queuePosition && (
+                                          <div className="bg-yellow-500/10 border border-yellow-400/30 rounded-lg p-3">
+                                            <div className="flex items-center gap-2">
+                                              <Clock className="w-4 h-4 text-yellow-400" />
+                                              <span className="text-yellow-200 font-medium">
+                                                Queue Position: #
+                                                {jobStatus.queuePosition}
+                                              </span>
+                                            </div>
+                                            <p className="text-xs text-yellow-300 mt-1">
+                                              Your video will start processing
+                                              when it reaches the front of the
+                                              queue.
+                                            </p>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <p className="text-gray-300 break-words mb-3">
+                                        {jobStatus.progress}
+                                      </p>
+                                    )}
 
                                     {/* character context */}
                                     {config && (
@@ -942,7 +998,8 @@ export default function ProjectScriptPage() {
                           </div>
 
                           {/* processing steps */}
-                          {(jobStatus.status === "processing" ||
+                          {(jobStatus.status === "queued" ||
+                            jobStatus.status === "processing" ||
                             jobStatus.status === "completed") && (
                             <div className="bg-gray-800/50 border border-gray-600 rounded-lg p-6">
                               <h4 className="font-mono text-gray-200 mb-4 flex items-center gap-2">
