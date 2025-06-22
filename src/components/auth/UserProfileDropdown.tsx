@@ -64,8 +64,8 @@ export function UserProfileDropdown() {
     createPaymentSession.mutate({
       priceId:
         process.env.NODE_ENV === "production"
-          ? "price_1RaiTRBHSgYyUP0eYCzY4urv" // change to prod price id
-          : "price_1RaiTRBHSgYyUP0eYCzY4urv",
+          ? "price_1RcZeQLdam6CbijMZcLtgiIW" // change to prod price id
+          : "price_1RcZ5cPv6wpCEsye5K9QBQqr",
       quantity: creditQuantity,
     });
   };

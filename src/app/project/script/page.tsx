@@ -67,9 +67,12 @@ const getProcessingSteps = (
     { key: "music", label: "Add Background Music" },
     { key: "upload", label: "Upload for Lipsync" },
     { key: "lipsync", label: "Lipsync Processing" },
-    { key: "finalize", label: "Normalize Video" },
+    { key: "lipsync_download", label: "Download Lipsync Result" },
+    { key: "finalize", label: "Finalize Video" },
     { key: "outro", label: "Add Outro" },
-    { key: "save", label: "Save Final Video" },
+    { key: "save_local", label: "Save Video Locally" },
+    { key: "upload_s3", label: "Upload to Cloud" },
+    { key: "complete", label: "Processing Complete" },
   ];
 
   // For multi-character mode, we need to show multiple audio generation steps
@@ -82,9 +85,12 @@ const getProcessingSteps = (
       { key: "music", label: "Add Background Music" },
       { key: "upload", label: "Upload for Lipsync" },
       { key: "lipsync", label: "Lipsync Processing" },
-      { key: "finalize", label: "Normalize Video" },
+      { key: "lipsync_download", label: "Download Lipsync Result" },
+      { key: "finalize", label: "Finalize Video" },
       { key: "outro", label: "Add Outro" },
-      { key: "save", label: "Save Final Video" },
+      { key: "save_local", label: "Save Video Locally" },
+      { key: "upload_s3", label: "Upload to Cloud" },
+      { key: "complete", label: "Processing Complete" },
     ];
   }
 
@@ -136,21 +142,49 @@ const getProcessingSteps = (
     progress.includes("background music")
   ) {
     currentStepIndex = 4; // music
-  } else if (progress.includes("uploading") && !progress.includes("lipsync")) {
-    currentStepIndex = 5; // upload
-  } else if (progress.includes("lipsync")) {
-    currentStepIndex = 6; // lipsync
-  } else if (progress.includes("normalizing") || progress.includes("finaliz")) {
-    currentStepIndex = 7; // finalize
-  } else if (progress.includes("outro")) {
-    currentStepIndex = 8; // outro
   } else if (
-    progress.includes("saving") ||
-    progress.includes("saved") ||
-    progress.includes("completed successfully") ||
-    progress.includes("video processing completed")
+    progress.includes("uploading") &&
+    !progress.includes("lipsync") &&
+    !progress.includes("final")
   ) {
-    currentStepIndex = 9; // save
+    currentStepIndex = 5; // upload
+  } else if (
+    progress.includes("lipsync processing in progress") ||
+    progress.includes("starting lipsync processing")
+  ) {
+    currentStepIndex = 6; // lipsync
+  } else if (
+    progress.includes("lipsync processing completed") ||
+    progress.includes("downloading result")
+  ) {
+    currentStepIndex = 7; // lipsync_download
+  } else if (
+    progress.includes("finalizing video") ||
+    progress.includes("video finalized")
+  ) {
+    currentStepIndex = 8; // finalize
+  } else if (
+    progress.includes("adding outro") ||
+    progress.includes("outro added")
+  ) {
+    currentStepIndex = 9; // outro
+  } else if (
+    progress.includes("video saved locally") ||
+    progress.includes("saved locally")
+  ) {
+    currentStepIndex = 10; // save_local
+  } else if (
+    progress.includes("uploading final video to s3") ||
+    progress.includes("upload progress") ||
+    (progress.includes("uploading") && progress.includes("s3"))
+  ) {
+    currentStepIndex = 11; // upload_s3
+  } else if (
+    progress.includes("video processing completed successfully") ||
+    progress.includes("processing completed successfully") ||
+    progress.includes("completed successfully")
+  ) {
+    currentStepIndex = 12; // complete
   }
 
   // For single character mode, adjust step indices
@@ -169,25 +203,47 @@ const getProcessingSteps = (
       currentStepIndex = 2; // music
     } else if (
       progress.includes("uploading") &&
-      !progress.includes("lipsync")
+      !progress.includes("lipsync") &&
+      !progress.includes("final")
     ) {
       currentStepIndex = 3; // upload
-    } else if (progress.includes("lipsync")) {
+    } else if (
+      progress.includes("lipsync processing in progress") ||
+      progress.includes("starting lipsync processing")
+    ) {
       currentStepIndex = 4; // lipsync
     } else if (
-      progress.includes("normalizing") ||
-      progress.includes("finaliz")
+      progress.includes("lipsync processing completed") ||
+      progress.includes("downloading result")
     ) {
-      currentStepIndex = 5; // finalize
-    } else if (progress.includes("outro")) {
-      currentStepIndex = 6; // outro
+      currentStepIndex = 5; // lipsync_download
     } else if (
-      progress.includes("saving") ||
-      progress.includes("saved") ||
-      progress.includes("completed successfully") ||
-      progress.includes("video processing completed")
+      progress.includes("finalizing video") ||
+      progress.includes("video finalized")
     ) {
-      currentStepIndex = 7; // save
+      currentStepIndex = 6; // finalize
+    } else if (
+      progress.includes("adding outro") ||
+      progress.includes("outro added")
+    ) {
+      currentStepIndex = 7; // outro
+    } else if (
+      progress.includes("video saved locally") ||
+      progress.includes("saved locally")
+    ) {
+      currentStepIndex = 8; // save_local
+    } else if (
+      progress.includes("uploading final video to s3") ||
+      progress.includes("upload progress") ||
+      (progress.includes("uploading") && progress.includes("s3"))
+    ) {
+      currentStepIndex = 9; // upload_s3
+    } else if (
+      progress.includes("video processing completed successfully") ||
+      progress.includes("processing completed successfully") ||
+      progress.includes("completed successfully")
+    ) {
+      currentStepIndex = 10; // complete
     }
   }
 
@@ -231,7 +287,30 @@ const getProcessingSteps = (
               (progress.includes("host") && progress.includes("outro")))) ||
             (progress.includes("processing audio generation") &&
               index === 2))) ||
-        (step.key === "lipsync" && progress.includes("lipsync processing")) ||
+        (step.key === "lipsync" &&
+          (progress.includes("lipsync processing in progress") ||
+            progress.includes("starting lipsync processing"))) ||
+        (step.key === "lipsync_download" &&
+          (progress.includes("lipsync processing completed") ||
+            progress.includes("downloading result"))) ||
+        (step.key === "finalize" &&
+          (progress.includes("finalizing video") ||
+            progress.includes("video finalized"))) ||
+        (step.key === "outro" &&
+          (progress.includes("adding outro") ||
+            progress.includes("outro added"))) ||
+        (step.key === "save_local" &&
+          (progress.includes("video saved locally") ||
+            progress.includes("saved locally"))) ||
+        (step.key === "upload_s3" &&
+          (progress.includes("uploading final video to s3") ||
+            progress.includes("upload progress") ||
+            progress.includes("uploading final video to s3 completed") ||
+            (progress.includes("uploading") && progress.includes("s3")))) ||
+        (step.key === "complete" &&
+          (progress.includes("video processing completed successfully") ||
+            progress.includes("processing completed successfully") ||
+            progress.includes("completed successfully"))) ||
         (step.key === "audio" &&
           (progress.includes("generating audio") ||
             progress.includes("processing audio generation")));
