@@ -52,8 +52,8 @@ export const stripeRouter = createTRPCRouter({
               quantity: 1,
             },
           ],
-          success_url: `${process.env.NEXT_PUBLIC_DESKTOP_APP_URL}/purchase-result?type=subscription`,
-          cancel_url: `${process.env.NEXT_PUBLIC_DESKTOP_APP_URL}/purchase-result?canceled=true`,
+          success_url: `${process.env.NEXT_PUBLIC_APP_URL}/purchase-result?type=subscription`,
+          cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/purchase-result?canceled=true`,
           metadata: {
             userId: ctx.user.id.toString(),
             type: "subscription",
@@ -162,7 +162,7 @@ export const stripeRouter = createTRPCRouter({
       // create stripe billing portal session
       const portalSession = await stripe.billingPortal.sessions.create({
         customer: ctx.user.stripeCustomerId,
-        return_url: `${process.env.NEXT_PUBLIC_DESKTOP_APP_URL}/`,
+        return_url: `${process.env.NEXT_PUBLIC_APP_URL}/`,
       });
 
       return { url: portalSession.url };
