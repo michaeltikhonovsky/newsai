@@ -251,7 +251,7 @@ const getProcessingSteps = (
     ) {
       currentStepIndex = 6; // finalize
     } else if (
-      progress.includes("lipsync processing completed") ||
+      progress.includes("lipsync processing completed, downloading result") ||
       progress.includes("downloading result") ||
       progress.includes("download lipsync result")
     ) {
