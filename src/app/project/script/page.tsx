@@ -146,17 +146,22 @@ const getProcessingSteps = (
   ) {
     currentStepIndex = 8; // finalize
   }
-  // Lipsync download
+  // Lipsync download (check for completed first with more specific match)
   else if (
     progress.includes("lipsync processing completed") ||
-    progress.includes("downloading result")
+    progress.includes("downloading result") ||
+    progress.includes("download lipsync result")
   ) {
     currentStepIndex = 7; // lipsync_download
   }
-  // Lipsync processing
+  // Lipsync processing (more specific check to avoid false matches)
   else if (
     progress.includes("lipsync processing in progress") ||
-    progress.includes("starting lipsync processing")
+    progress.includes("starting lipsync processing") ||
+    (progress.includes("lipsync") &&
+      progress.includes("processing") &&
+      !progress.includes("completed") &&
+      !progress.includes("downloading"))
   ) {
     currentStepIndex = 6; // lipsync
   }
@@ -247,12 +252,17 @@ const getProcessingSteps = (
       currentStepIndex = 6; // finalize
     } else if (
       progress.includes("lipsync processing completed") ||
-      progress.includes("downloading result")
+      progress.includes("downloading result") ||
+      progress.includes("download lipsync result")
     ) {
       currentStepIndex = 5; // lipsync_download
     } else if (
       progress.includes("lipsync processing in progress") ||
-      progress.includes("starting lipsync processing")
+      progress.includes("starting lipsync processing") ||
+      (progress.includes("lipsync") &&
+        progress.includes("processing") &&
+        !progress.includes("completed") &&
+        !progress.includes("downloading"))
     ) {
       currentStepIndex = 4; // lipsync
     } else if (
@@ -324,10 +334,15 @@ const getProcessingSteps = (
               index === 2))) ||
         (step.key === "lipsync" &&
           (progress.includes("lipsync processing in progress") ||
-            progress.includes("starting lipsync processing"))) ||
+            progress.includes("starting lipsync processing") ||
+            (progress.includes("lipsync") &&
+              progress.includes("processing") &&
+              !progress.includes("completed") &&
+              !progress.includes("downloading")))) ||
         (step.key === "lipsync_download" &&
           (progress.includes("lipsync processing completed") ||
-            progress.includes("downloading result"))) ||
+            progress.includes("downloading result") ||
+            progress.includes("download lipsync result"))) ||
         (step.key === "finalize" &&
           (progress.includes("finalizing video") ||
             progress.includes("video finalized"))) ||
