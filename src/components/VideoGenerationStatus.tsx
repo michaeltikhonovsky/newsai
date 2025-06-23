@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,6 +13,7 @@ import {
   Download,
   Home,
   AlertCircle,
+  X,
 } from "lucide-react";
 import { useJobCancellation } from "@/hooks/useJobCancellation";
 
@@ -72,12 +74,22 @@ export const VideoGenerationStatus = ({
   getProcessingSteps,
   isVideoGenerationComplete,
 }: VideoGenerationStatusProps) => {
+  const [connectionWarningDismissed, setConnectionWarningDismissed] =
+    useState(false);
+
   const { cancelCurrentJob } = useJobCancellation({
     config,
     currentJobId,
     hasRefunded,
     onCancel: onReset,
   });
+
+  // Reset dismissed state if errors clear up
+  useEffect(() => {
+    if (consecutiveErrors === 0) {
+      setConnectionWarningDismissed(false);
+    }
+  }, [consecutiveErrors]);
 
   // Show video preview when fully complete
   if (isVideoGenerationComplete()) {
@@ -326,35 +338,48 @@ export const VideoGenerationStatus = ({
               )}
             </div>
 
-            {/* Connection status warning */}
-            {consecutiveErrors > 0 && consecutiveErrors < 5 && (
-              <div className="bg-yellow-500/10 border border-yellow-400/30 rounded-lg p-4 mb-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="font-mono text-yellow-300 font-medium mb-2">
-                        Connection Issues Detected
-                      </h4>
-                      <p className="text-yellow-200 text-sm mb-3">
-                        Having trouble connecting to the server (
-                        {consecutiveErrors}/5 failures). Retrying
-                        automatically... If this continues, your credits will be
-                        refunded.
-                      </p>
+            {/* Connection status warning - only show for significant issues */}
+            {consecutiveErrors >= 3 &&
+              consecutiveErrors < 5 &&
+              !connectionWarningDismissed && (
+                <div className="bg-yellow-500/10 border border-yellow-400/30 rounded-lg p-4 mb-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <h4 className="font-mono text-yellow-300 font-medium mb-2">
+                          {consecutiveErrors === 3
+                            ? "Network Hiccup"
+                            : "Connection Issues"}
+                        </h4>
+                        <p className="text-yellow-200 text-sm mb-3">
+                          {consecutiveErrors === 3
+                            ? "Temporary network delay detected. Don't worry - your video is still processing normally."
+                            : `Having trouble connecting to the server (${consecutiveErrors}/5 failures). Your video continues processing - this only affects status updates.`}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setConnectionWarningDismissed(true)}
+                        className="text-yellow-400 hover:bg-yellow-500/20 p-1 h-auto"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={cancelCurrentJob}
+                        className="border-yellow-400/50 text-yellow-300 hover:bg-yellow-500/20 flex-shrink-0"
+                      >
+                        Cancel & Refund
+                      </Button>
                     </div>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={cancelCurrentJob}
-                    className="border-yellow-400/50 text-yellow-300 hover:bg-yellow-500/20 flex-shrink-0"
-                  >
-                    Cancel & Refund
-                  </Button>
                 </div>
-              </div>
-            )}
+              )}
 
             {/* Processing steps */}
             {(jobStatus.status === "queued" ||

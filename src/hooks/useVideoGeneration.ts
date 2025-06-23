@@ -148,11 +148,56 @@ export const useVideoGeneration = (
   const pollJobStatus = useCallback(
     async (jobId: string, retryCount: number = 0) => {
       try {
-        const response = await fetch(`/api/status/${jobId}`);
+        // Add timeout and better fetch configuration
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+        const response = await fetch(`/api/status/${jobId}`, {
+          signal: controller.signal,
+          headers: {
+            "Cache-Control": "no-cache",
+            "Content-Type": "application/json",
+          },
+        });
+
+        clearTimeout(timeoutId);
+
+        // More nuanced HTTP error handling
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          // Treat server errors (5xx) and rate limits (429) as temporary
+          if (response.status >= 500 || response.status === 429) {
+            throw new Error(
+              `Server temporarily unavailable (${response.status})`
+            );
+          }
+          // Treat client errors (4xx except 429) as permanent
+          else if (response.status >= 400) {
+            throw new Error(
+              `Request error (${response.status}): ${response.statusText}`
+            );
+          }
         }
-        const status: JobStatus = await response.json();
+
+        // Validate response content type
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          throw new Error("Invalid response format - expected JSON");
+        }
+
+        let status: JobStatus;
+        try {
+          status = await response.json();
+        } catch (parseError) {
+          throw new Error("Failed to parse response JSON");
+        }
+
+        // Validate required fields
+        if (!status.jobId || !status.status) {
+          throw new Error(
+            "Invalid response structure - missing required fields"
+          );
+        }
+
         setJobStatus(status);
         setConsecutiveErrors(0); // reset error counter on success
         consecutiveErrorsRef.current = 0;
@@ -171,7 +216,9 @@ export const useVideoGeneration = (
           status.status === "queued" ||
           status.status === "processing"
         ) {
-          setTimeout(() => pollJobStatus(jobId, 0), 1000);
+          // Use longer intervals for more stable polling
+          const pollInterval = retryCount > 0 ? 3000 : 2000; // 2s normal, 3s after errors
+          setTimeout(() => pollJobStatus(jobId, 0), pollInterval);
         } else if (status.status === "failed") {
           handleJobFailure(jobId, status.error || "Video generation failed");
         } else if (status.status === "completed") {
@@ -187,36 +234,98 @@ export const useVideoGeneration = (
           }
         }
       } catch (err: any) {
-        console.error("Error polling job status:", err);
-        const newConsecutiveErrors = consecutiveErrorsRef.current + 1;
-        console.log(
-          `Setting consecutive errors to: ${newConsecutiveErrors} (was ${consecutiveErrorsRef.current})`
-        );
+        // Classify the error type for better handling
+        const isNetworkError =
+          err.name === "AbortError" ||
+          err.message.includes("NetworkError") ||
+          err.message.includes("Failed to fetch") ||
+          err.message.includes("temporarily unavailable");
 
-        setConsecutiveErrors(newConsecutiveErrors);
-        consecutiveErrorsRef.current = newConsecutiveErrors;
+        const isTemporaryError =
+          isNetworkError ||
+          err.message.includes("timeout") ||
+          err.message.includes("Server temporarily unavailable") ||
+          err.message.includes("rate limit");
 
-        // If we've had too many consecutive errors (5+ failures), consider the job failed
-        if (newConsecutiveErrors >= 5) {
-          console.warn(
-            `Job ${jobId} failed after ${newConsecutiveErrors} consecutive network errors`
-          );
-          handleJobFailure(
-            jobId,
-            `Connection failed after multiple attempts: ${err.message}`
-          );
+        const isPermanentError =
+          err.message.includes("Request error (4") &&
+          !err.message.includes("429"); // 429 is rate limit, treat as temporary
+
+        console.error("Error polling job status:", {
+          error: err.message,
+          type: isNetworkError
+            ? "network"
+            : isTemporaryError
+            ? "temporary"
+            : isPermanentError
+            ? "permanent"
+            : "unknown",
+          retryCount,
+          consecutiveErrors: consecutiveErrorsRef.current,
+        });
+
+        // Don't count permanent errors as consecutive network issues
+        if (isPermanentError) {
+          console.error(`Permanent error encountered: ${err.message}`);
+          handleJobFailure(jobId, `Request failed: ${err.message}`);
           return;
         }
 
-        // Exponential backoff for retries
-        const backoffDelay = Math.min(1000 * Math.pow(2, retryCount), 10000); // max 10 seconds
-        console.log(
-          `Retrying in ${backoffDelay}ms (attempt ${
-            retryCount + 1
-          }), consecutive errors: ${newConsecutiveErrors}`
-        );
+        // Only count temporary/network errors toward consecutive error counter
+        if (isTemporaryError || isNetworkError) {
+          const newConsecutiveErrors = consecutiveErrorsRef.current + 1;
+          console.log(
+            `Network/temporary error ${newConsecutiveErrors}: ${err.message}`
+          );
 
-        setTimeout(() => pollJobStatus(jobId, retryCount + 1), backoffDelay);
+          // Only update UI state for errors >= 3 to reduce flashing
+          if (newConsecutiveErrors >= 3) {
+            setConsecutiveErrors(newConsecutiveErrors);
+          }
+          consecutiveErrorsRef.current = newConsecutiveErrors;
+
+          // Increase threshold to 7 for more resilience to temporary issues
+          if (newConsecutiveErrors >= 7) {
+            console.warn(
+              `Job ${jobId} failed after ${newConsecutiveErrors} consecutive network errors`
+            );
+            handleJobFailure(
+              jobId,
+              `Connection failed after multiple attempts: ${err.message}`
+            );
+            return;
+          }
+
+          // Dynamic backoff based on error type
+          let backoffMultiplier = 1.5;
+          if (
+            err.message.includes("rate limit") ||
+            err.message.includes("429")
+          ) {
+            backoffMultiplier = 2.0; // Slower retry for rate limits
+          }
+
+          const backoffDelay = Math.min(
+            2000 * Math.pow(backoffMultiplier, retryCount),
+            20000 // max 20 seconds
+          );
+
+          console.log(
+            `Retrying in ${backoffDelay}ms (attempt ${
+              retryCount + 1
+            }), consecutive errors: ${newConsecutiveErrors}`
+          );
+
+          setTimeout(() => pollJobStatus(jobId, retryCount + 1), backoffDelay);
+        } else {
+          // Unknown error type - treat cautiously but don't fail immediately
+          console.warn(`Unknown error type: ${err.message}`);
+          const backoffDelay = Math.min(
+            5000 * Math.pow(1.5, retryCount),
+            20000
+          );
+          setTimeout(() => pollJobStatus(jobId, retryCount + 1), backoffDelay);
+        }
       }
     },
     [pollingStartTime, handleJobFailure, onSuccess]
