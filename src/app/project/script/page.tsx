@@ -148,7 +148,7 @@ const getProcessingSteps = (
   }
   // Lipsync download (check for completed first with more specific match)
   else if (
-    progress.includes("lipsync processing completed") ||
+    progress.includes("lipsync processing completed, downloading result") ||
     progress.includes("downloading result") ||
     progress.includes("download lipsync result")
   ) {
