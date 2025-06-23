@@ -52,8 +52,8 @@ const guests: Character[] = [
 ];
 
 const CHARACTER_LIMITS = {
-  30: 400,
-  60: 800,
+  30: 550,
+  60: 1100,
 };
 
 const getProcessingSteps = (
@@ -76,12 +76,10 @@ const getProcessingSteps = (
     { key: "complete", label: "Processing Complete" },
   ];
 
-  // For multi-character mode, we need to show multiple audio generation steps
+  // For multi-character mode, use single audio step
   if (config?.mode === "host_guest_host") {
     steps = [
-      { key: "audio_host1", label: "Generate Host Intro Audio" },
-      { key: "audio_guest", label: "Generate Guest Audio" },
-      { key: "audio_host2", label: "Generate Host Outro Audio" },
+      { key: "audio", label: "Generate Audio" },
       { key: "concatenate", label: "Concatenate Video Segments" },
       { key: "music", label: "Add Background Music" },
       { key: "upload", label: "Upload for Lipsync" },
@@ -115,7 +113,7 @@ const getProcessingSteps = (
       !progress.includes("outro") &&
       !progress.includes("finalized"))
   ) {
-    currentStepIndex = 12; // complete
+    currentStepIndex = 10; // complete
   }
   // Final S3 upload (very specific to avoid confusion with early uploads)
   else if (
@@ -123,28 +121,28 @@ const getProcessingSteps = (
     (progress.includes("upload progress") && !progress.includes("lipsync")) ||
     progress.includes("uploading final video to s3 completed")
   ) {
-    currentStepIndex = 11; // upload_s3
+    currentStepIndex = 9; // upload_s3
   }
   // Local save
   else if (
     progress.includes("video saved locally") ||
     progress.includes("saved locally")
   ) {
-    currentStepIndex = 10; // save_local
+    currentStepIndex = 8; // save_local
   }
   // Outro processing
   else if (
     progress.includes("adding outro") ||
     progress.includes("outro added")
   ) {
-    currentStepIndex = 9; // outro
+    currentStepIndex = 7; // outro
   }
   // Video finalization
   else if (
     progress.includes("finalizing video") ||
     progress.includes("video finalized")
   ) {
-    currentStepIndex = 8; // finalize
+    currentStepIndex = 6; // finalize
   }
   // Lipsync download (check for completed first with more specific match)
   else if (
@@ -152,7 +150,7 @@ const getProcessingSteps = (
     progress.includes("downloading result") ||
     progress.includes("download lipsync result")
   ) {
-    currentStepIndex = 7; // lipsync_download
+    currentStepIndex = 5; // lipsync_download
   }
   // Lipsync processing (more specific check to avoid false matches)
   else if (
@@ -163,7 +161,7 @@ const getProcessingSteps = (
       !progress.includes("completed") &&
       !progress.includes("downloading"))
   ) {
-    currentStepIndex = 6; // lipsync
+    currentStepIndex = 4; // lipsync
   }
   // Early uploads (for lipsync processing - be very specific)
   else if (
@@ -171,51 +169,31 @@ const getProcessingSteps = (
     progress.includes("uploading video for lipsync") ||
     progress.includes("uploading audio for lipsync")
   ) {
-    currentStepIndex = 5; // upload
+    currentStepIndex = 3; // upload
   }
   // Background music
   else if (
     progress.includes("adding background music") ||
     progress.includes("background music")
   ) {
-    currentStepIndex = 4; // music
+    currentStepIndex = 2; // music
   }
   // Concatenation (multi-character mode)
   else if (progress.includes("concatenating")) {
-    currentStepIndex = 3; // concatenate
+    currentStepIndex = 1; // concatenate
   }
-  // Audio generation phases
+  // Audio generation (simplified for both single audio steps and multi-character audio)
   else if (
+    progress.includes("generating audio") ||
+    progress.includes("processing audio generation") ||
     (progress.includes("generating audio for") &&
-      progress.includes("conclusion")) ||
-    (progress.includes("generating audio for") &&
-      progress.includes("host") &&
-      progress.includes("outro"))
+      (progress.includes("introduction") ||
+        progress.includes("main segment") ||
+        progress.includes("conclusion") ||
+        progress.includes("host") ||
+        progress.includes("guest")))
   ) {
-    currentStepIndex = 2; // audio_host2
-  } else if (
-    (progress.includes("generating audio for") &&
-      progress.includes("main segment")) ||
-    (progress.includes("generating audio for") && progress.includes("guest"))
-  ) {
-    currentStepIndex = 1; // audio_guest
-  } else if (
-    (progress.includes("generating audio for") &&
-      progress.includes("introduction")) ||
-    (progress.includes("generating audio for") &&
-      progress.includes("host") &&
-      progress.includes("intro"))
-  ) {
-    currentStepIndex = 0; // audio_host1
-  } else if (progress.includes("processing audio generation")) {
-    // For generic "processing audio generation" messages, check context
-    if (progress.includes("✅") && progress.includes("introduction")) {
-      currentStepIndex = 1; // Host intro done, moving to guest
-    } else if (progress.includes("✅") && progress.includes("main segment")) {
-      currentStepIndex = 2; // Guest done, moving to host outro
-    } else {
-      currentStepIndex = 0; // Default to first step if unclear
-    }
+    currentStepIndex = 0; // audio
   }
 
   // For single character mode, adjust step indices
@@ -314,24 +292,15 @@ const getProcessingSteps = (
       // Fallback to text-based detection for edge cases
       current =
         progress.includes(step.label.toLowerCase()) ||
-        (step.key === "audio_host1" &&
-          ((progress.includes("generating audio for") &&
-            (progress.includes("introduction") ||
-              (progress.includes("host") && progress.includes("intro")))) ||
-            (progress.includes("processing audio generation") &&
-              index === 0))) ||
-        (step.key === "audio_guest" &&
-          ((progress.includes("generating audio for") &&
-            (progress.includes("main segment") ||
-              progress.includes("guest"))) ||
-            (progress.includes("processing audio generation") &&
-              index === 1))) ||
-        (step.key === "audio_host2" &&
-          ((progress.includes("generating audio for") &&
-            (progress.includes("conclusion") ||
-              (progress.includes("host") && progress.includes("outro")))) ||
-            (progress.includes("processing audio generation") &&
-              index === 2))) ||
+        (step.key === "audio" &&
+          (progress.includes("generating audio") ||
+            progress.includes("processing audio generation") ||
+            (progress.includes("generating audio for") &&
+              (progress.includes("introduction") ||
+                progress.includes("main segment") ||
+                progress.includes("conclusion") ||
+                progress.includes("host") ||
+                progress.includes("guest"))))) ||
         (step.key === "lipsync" &&
           (progress.includes("lipsync processing in progress") ||
             progress.includes("starting lipsync processing") ||
@@ -360,10 +329,7 @@ const getProcessingSteps = (
         (step.key === "complete" &&
           (progress.includes("video processing completed successfully") ||
             progress.includes("processing completed successfully") ||
-            progress.includes("completed successfully"))) ||
-        (step.key === "audio" &&
-          (progress.includes("generating audio") ||
-            progress.includes("processing audio generation")));
+            progress.includes("completed successfully")));
     }
 
     return { ...step, completed, current };
