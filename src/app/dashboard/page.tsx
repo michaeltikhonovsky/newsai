@@ -137,7 +137,7 @@ export default function Dashboard() {
                   ? "You haven't created any projects yet. Start by creating a new one."
                   : `You have ${projectCount} completed project${
                       projectCount === 1 ? "" : "s"
-                    }. View and manage them here.`}
+                    }. View and manage the past 5 projects here.`}
               </p>
               <Button
                 variant="outline"
