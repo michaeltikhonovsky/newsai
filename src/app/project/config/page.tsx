@@ -49,6 +49,18 @@ const hosts: Character[] = [
     initials: "AC",
     avatar: "/avatars/AC-headshot.png",
   },
+  {
+    id: "TC",
+    name: "Tucker Carlson",
+    initials: "TC",
+    avatar: "/avatars/TC-headshot.webp",
+  },
+  {
+    id: "DM",
+    name: "David Muir",
+    initials: "DM",
+    avatar: "/avatars/DM-headshot.webp",
+  },
 ];
 
 const guests: Character[] = [
@@ -63,6 +75,12 @@ const guests: Character[] = [
     name: "Holly Williams",
     initials: "HW",
     avatar: "/avatars/HW-headshot.webp",
+  },
+  {
+    id: "AM",
+    name: "Andrea Mitchell",
+    initials: "AM",
+    avatar: "/avatars/AM-headshot.webp",
   },
 ];
 
@@ -94,6 +112,62 @@ const hostGuestPairs: HostGuestPair[] = [
     folder: "AC_HW_AC",
     hostCharacterId: "AC",
     guestCharacterId: "HW",
+  },
+  {
+    id: "pair5",
+    name: "DM AM DM",
+    folder: "DM_AM_DM",
+    hostCharacterId: "DM",
+    guestCharacterId: "AM",
+  },
+  {
+    id: "pair6",
+    name: "AC AM AC",
+    folder: "AC_AM_AC",
+    hostCharacterId: "AC",
+    guestCharacterId: "AM",
+  },
+  {
+    id: "pair7",
+    name: "DM HW DM",
+    folder: "DM_HW_DM",
+    hostCharacterId: "DM",
+    guestCharacterId: "HW",
+  },
+  {
+    id: "pair8",
+    name: "DM RE DM",
+    folder: "DM_RE_DM",
+    hostCharacterId: "DM",
+    guestCharacterId: "RE",
+  },
+  {
+    id: "pair9",
+    name: "LH AM LH",
+    folder: "LH_AM_LH",
+    hostCharacterId: "lh",
+    guestCharacterId: "AM",
+  },
+  {
+    id: "pair10",
+    name: "TC AM TC",
+    folder: "TC_AM_TC",
+    hostCharacterId: "TC",
+    guestCharacterId: "AM",
+  },
+  {
+    id: "pair11",
+    name: "TC HW TC",
+    folder: "TC_HW_TC",
+    hostCharacterId: "TC",
+    guestCharacterId: "HW",
+  },
+  {
+    id: "pair12",
+    name: "TC RE TC",
+    folder: "TC_RE_TC",
+    hostCharacterId: "TC",
+    guestCharacterId: "RE",
   },
 ];
 
