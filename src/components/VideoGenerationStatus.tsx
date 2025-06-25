@@ -132,7 +132,7 @@ export const VideoGenerationStatus = ({
                     }
                   }}
                 >
-                  {/* Use direct S3 URL if available, fallback to API proxy */}
+                  {/* use direct S3 url if available & fallback to api proxy if not */}
                   <source
                     src={s3Url || `/api/video/${jobStatus?.jobId}`}
                     type="video/mp4"

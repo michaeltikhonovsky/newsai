@@ -468,7 +468,7 @@ function ProjectScriptPageContent() {
     if (!generation.jobStatus?.jobId) return;
 
     try {
-      // Use direct S3 URL if available, fallback to API proxy
+      // Use direct S3 URL if available & fallback to API proxy
       const downloadUrl =
         currentVideoS3Url || `/api/video/${generation.jobStatus.jobId}`;
 

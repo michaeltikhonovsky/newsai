@@ -2,7 +2,14 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { RotateCw, Clock, AlertTriangle, X, Video } from "lucide-react";
+import {
+  RotateCw,
+  Clock,
+  AlertTriangle,
+  X,
+  Video,
+  ArrowRight,
+} from "lucide-react";
 import { PiQueue } from "react-icons/pi";
 import { useGlobalVideoProgressContext } from "@/components/providers/GlobalVideoProgressProvider";
 import { useRouter } from "next/navigation";
@@ -179,6 +186,15 @@ export const GlobalVideoProgress = () => {
                               ).toLocaleTimeString()}
                             </span>
                             <span>{getProgress(generation)}%</span>
+                          </div>
+                          <div
+                            className="group flex items-center gap-2 cursor-pointer transition-colors"
+                            onClick={navigateToProject}
+                          >
+                            <span className="text-xs text-gray-400 group-hover:text-gray-300 transition-colors">
+                              Navigate to main status page
+                            </span>
+                            <ArrowRight className="w-3 h-3 text-gray-400 group-hover:text-gray-300 transition-colors" />
                           </div>
                         </div>
                       ))}
