@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -344,7 +344,7 @@ const getProcessingSteps = (
   });
 };
 
-export default function ProjectScriptPage() {
+function ProjectScriptPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [config, setConfig] = useState<VideoConfig | null>(null);
@@ -902,5 +902,21 @@ export default function ProjectScriptPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function ProjectScriptPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-black flex items-center justify-center">
+          <div className="animate-pulse text-indigo-200 font-mono">
+            Loading...
+          </div>
+        </div>
+      }
+    >
+      <ProjectScriptPageContent />
+    </Suspense>
   );
 }
