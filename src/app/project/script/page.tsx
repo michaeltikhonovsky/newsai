@@ -362,6 +362,20 @@ function ProjectScriptPageContent() {
     saveCompletedProject(jobId);
   });
 
+  const { data: completedVideos } = api.videos.getRecentVideos.useQuery(
+    undefined,
+    {
+      enabled:
+        generation.jobStatus?.status === "completed" &&
+        !!generation.currentJobId,
+      refetchInterval: false,
+    }
+  );
+
+  const currentVideoS3Url = completedVideos?.find(
+    (video) => video.jobId === generation.currentJobId
+  )?.s3Url;
+
   // Credit checks
   const { data: creditCheck } = api.users.checkCredits.useQuery(
     { duration: config?.duration || 30 },
@@ -454,7 +468,11 @@ function ProjectScriptPageContent() {
     if (!generation.jobStatus?.jobId) return;
 
     try {
-      const response = await fetch(`/api/video/${generation.jobStatus.jobId}`);
+      // Use direct S3 URL if available, fallback to API proxy
+      const downloadUrl =
+        currentVideoS3Url || `/api/video/${generation.jobStatus.jobId}`;
+
+      const response = await fetch(downloadUrl);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -733,6 +751,7 @@ function ProjectScriptPageContent() {
                   consecutiveErrors={generation.consecutiveErrors}
                   currentJobId={generation.currentJobId}
                   isGenerating={generation.isGenerating}
+                  s3Url={currentVideoS3Url}
                   onBack={() => router.push("/dashboard")}
                   onDownload={downloadVideo}
                   onReset={generation.resetGeneration}

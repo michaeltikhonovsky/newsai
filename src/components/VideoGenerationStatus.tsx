@@ -47,6 +47,7 @@ interface VideoGenerationStatusProps {
   consecutiveErrors: number;
   currentJobId: string | null;
   isGenerating: boolean;
+  s3Url?: string | null;
   onBack: () => void;
   onDownload: () => void;
   onReset: () => void;
@@ -66,6 +67,7 @@ export const VideoGenerationStatus = ({
   consecutiveErrors,
   currentJobId,
   isGenerating,
+  s3Url,
   onBack,
   onDownload,
   onReset,
@@ -130,8 +132,9 @@ export const VideoGenerationStatus = ({
                     }
                   }}
                 >
+                  {/* Use direct S3 URL if available, fallback to API proxy */}
                   <source
-                    src={`/api/video/${jobStatus?.jobId}`}
+                    src={s3Url || `/api/video/${jobStatus?.jobId}`}
                     type="video/mp4"
                   />
                   <div className="flex items-center justify-center h-full">

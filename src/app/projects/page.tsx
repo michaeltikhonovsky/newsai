@@ -83,7 +83,12 @@ export default function ProjectsPage() {
 
   const downloadVideo = async (project: VideoRecord) => {
     try {
-      const response = await fetch(`/api/video/${project.jobId}`);
+      // Use direct S3 URL for download
+      if (!project.s3Url) {
+        throw new Error("Video URL not available");
+      }
+
+      const response = await fetch(project.s3Url);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -348,12 +353,16 @@ export default function ProjectsPage() {
                                   onLoadedData={() =>
                                     handleVideoLoadedData(projectIdStr)
                                   }
-                                  onError={() =>
+                                  onError={(e) => {
+                                    console.error(
+                                      `Video load failed for project ${projectIdStr}:`,
+                                      e
+                                    );
                                     handleVideoError(
                                       projectIdStr,
                                       "Failed to load video"
-                                    )
-                                  }
+                                    );
+                                  }}
                                   onEnded={() => {
                                     setPlayingVideo(null);
                                     setVideoStates((prev) => ({
@@ -365,8 +374,9 @@ export default function ProjectsPage() {
                                     }));
                                   }}
                                 >
+                                  {/* Use direct S3 url*/}
                                   <source
-                                    src={`/api/video/${project.jobId}`}
+                                    src={project.s3Url!}
                                     type="video/mp4"
                                   />
                                   Your browser does not support the video tag.
