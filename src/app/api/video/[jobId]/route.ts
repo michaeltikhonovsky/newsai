@@ -24,10 +24,17 @@ export async function GET(
       );
     }
 
+    // Get range header for partial content requests
+    const range = request.headers.get("range");
+
     // call external api for video
     const headers: Record<string, string> = {};
-
     headers["Authorization"] = `Bearer ${API_AUTH_KEY}`;
+
+    // Forward range header if present
+    if (range) {
+      headers["Range"] = range;
+    }
 
     const response = await fetch(`${API_BASE_URL}/video/${jobId}`, {
       headers,
@@ -50,8 +57,16 @@ export async function GET(
       if (jsonData.s3Url || jsonData.videoUrl || jsonData.url) {
         const videoUrl = jsonData.s3Url || jsonData.videoUrl || jsonData.url;
 
-        // Fetch the video from S3 and stream it
-        const videoResponse = await fetch(videoUrl);
+        // Prepare headers for S3 request
+        const s3Headers: Record<string, string> = {};
+        if (range) {
+          s3Headers["Range"] = range;
+        }
+
+        // Fetch the video from S3 with range support
+        const videoResponse = await fetch(videoUrl, {
+          headers: s3Headers,
+        });
 
         if (!videoResponse.ok) {
           throw new Error(
@@ -62,18 +77,28 @@ export async function GET(
         const videoContentType =
           videoResponse.headers.get("content-type") || "video/mp4";
         const videoContentLength = videoResponse.headers.get("content-length");
+        const videoContentRange = videoResponse.headers.get("content-range");
+        const acceptRanges = videoResponse.headers.get("accept-ranges");
 
         const responseHeaders = new Headers({
           "Content-Type": videoContentType,
-          "Cache-Control": "public, max-age=31536000, immutable",
+          "Cache-Control": "public, max-age=3600", // Shorter cache for range requests
+          "Accept-Ranges": acceptRanges || "bytes",
         });
 
         if (videoContentLength) {
           responseHeaders.set("Content-Length", videoContentLength);
         }
 
+        if (videoContentRange) {
+          responseHeaders.set("Content-Range", videoContentRange);
+        }
+
+        // Return appropriate status code
+        const status = videoResponse.status === 206 ? 206 : 200;
+
         return new NextResponse(videoResponse.body, {
-          status: 200,
+          status,
           headers: responseHeaders,
         });
       } else {
@@ -82,19 +107,28 @@ export async function GET(
     } else {
       // Response is binary video file - stream it through
       const contentLength = response.headers.get("content-length");
+      const contentRange = response.headers.get("content-range");
+      const acceptRanges = response.headers.get("accept-ranges");
 
       const responseHeaders = new Headers({
         "Content-Type": contentType || "video/mp4",
-        "Cache-Control": "public, max-age=31536000, immutable",
+        "Cache-Control": "public, max-age=3600",
+        "Accept-Ranges": acceptRanges || "bytes",
       });
 
       if (contentLength) {
         responseHeaders.set("Content-Length", contentLength);
       }
 
-      // stream the response
+      if (contentRange) {
+        responseHeaders.set("Content-Range", contentRange);
+      }
+
+      // Return appropriate status code for range requests
+      const status = response.status === 206 ? 206 : 200;
+
       return new NextResponse(response.body, {
-        status: 200,
+        status,
         headers: responseHeaders,
       });
     }

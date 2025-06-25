@@ -109,8 +109,25 @@ export const VideoGenerationStatus = ({
                   controls
                   className="w-full h-full object-cover"
                   preload="metadata"
-                  onError={() => {
-                    console.error("Video failed to load");
+                  onError={(e) => {
+                    console.error("Video failed to load:", e);
+                    // Try to reload the video source
+                    const video = e.target as HTMLVideoElement;
+                    if (video.src && !video.dataset.retried) {
+                      video.dataset.retried = "true";
+                      setTimeout(() => {
+                        video.load();
+                      }, 1000);
+                    }
+                  }}
+                  onLoadStart={() => {
+                    // Reset retry flag when starting to load
+                    const video = document.querySelector(
+                      "video"
+                    ) as HTMLVideoElement;
+                    if (video) {
+                      delete video.dataset.retried;
+                    }
                   }}
                 >
                   <source
