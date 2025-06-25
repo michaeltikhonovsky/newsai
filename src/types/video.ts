@@ -7,6 +7,7 @@ export interface VideoConfig {
   host1Text: string;
   guest1Text: string;
   host2Text: string;
+  enableMusic: boolean;
 }
 
 export interface JobStatus {
@@ -43,6 +44,7 @@ export interface GenerateVideoRequest {
   host1Text?: string;
   guest1Text?: string;
   host2Text?: string;
+  enableMusic?: boolean;
 }
 
 export interface Character {

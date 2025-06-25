@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,7 +19,15 @@ import type {
   GenerateVideoRequest,
   Character,
 } from "@/types/video";
-import { ArrowLeft, Settings, Clock, User, Users, Coins } from "lucide-react";
+import {
+  ArrowLeft,
+  Settings,
+  Clock,
+  User,
+  Users,
+  Coins,
+  Music,
+} from "lucide-react";
 
 const hosts: Character[] = [
   {
@@ -338,6 +346,7 @@ const getProcessingSteps = (
 
 export default function ProjectScriptPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [config, setConfig] = useState<VideoConfig | null>(null);
   const [scripts, setScripts] = useState<Scripts>({
     singleCharacterText: "",
@@ -565,19 +574,48 @@ export default function ProjectScriptPage() {
     currentProgress?: string | undefined,
     config?: any
   ): ProcessingStep[] => {
-    const steps = getProcessingSteps(currentProgress, config, lastStepIndex);
+    return getProcessingSteps(currentProgress, config, lastStepIndex);
+  };
 
-    // Update the last step index to track progress
-    const currentStep = steps.find((step) => step.current);
-    if (currentStep) {
-      const currentIndex = steps.indexOf(currentStep);
-      if (currentIndex > lastStepIndex) {
-        setLastStepIndex(currentIndex);
+  // Update the last step index when progress changes
+  useEffect(() => {
+    if (generation.jobStatus?.progress && config) {
+      const steps = getProcessingSteps(
+        generation.jobStatus.progress,
+        config,
+        lastStepIndex
+      );
+      const currentStep = steps.find((step) => step.current);
+      if (currentStep) {
+        const currentIndex = steps.indexOf(currentStep);
+        if (currentIndex > lastStepIndex) {
+          setLastStepIndex(currentIndex);
+        }
       }
     }
+  }, [generation.jobStatus?.progress, config, lastStepIndex]);
 
-    return steps;
-  };
+  // Check if we're coming from the floating icon with a jobId to restore generation state
+  useEffect(() => {
+    const jobId = searchParams.get("jobId");
+    const showStatus = searchParams.get("showStatus");
+
+    if (
+      jobId &&
+      showStatus === "true" &&
+      !generation.isGenerating &&
+      !generation.jobStatus
+    ) {
+      // Use the restore functionality if available
+      if (generation.restoreFromJobId) {
+        generation.restoreFromJobId(jobId);
+      }
+
+      // Clear the query parameters to clean up the URL
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, "", newUrl);
+    }
+  }, [searchParams, generation]);
 
   const handleGenerate = async () => {
     if (!config) return;
@@ -598,6 +636,7 @@ export default function ProjectScriptPage() {
         config.mode === "host_guest_host" ? scripts.guest1Text : undefined,
       host2Text:
         config.mode === "host_guest_host" ? scripts.host2Text : undefined,
+      enableMusic: config.enableMusic,
     };
 
     await generation.startGeneration(requestBody);
@@ -669,6 +708,24 @@ export default function ProjectScriptPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
               >
+                {/* Background generation info */}
+                {(generation.isGenerating ||
+                  generation.jobStatus?.status === "pending" ||
+                  generation.jobStatus?.status === "queued" ||
+                  generation.jobStatus?.status === "processing") && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="mt-4 text-center"
+                  >
+                    <p className="text-sm text-gray-400 bg-blue-500/10 border border-blue-400/30 rounded-lg px-4 py-3 mb-3">
+                      💡 Generation will continue in the background. Feel free
+                      to leave this page and come back later as the lipsync
+                      process can sometimes take up to 10 minutes.
+                    </p>
+                  </motion.div>
+                )}
                 <VideoGenerationStatus
                   jobStatus={generation.jobStatus}
                   config={config}
@@ -734,6 +791,12 @@ export default function ProjectScriptPage() {
                               {getGuestName(config.selectedGuest)}
                             </div>
                           )}
+                        <div className="flex items-center gap-2">
+                          <Music className="w-4 h-4" />
+                          <span className="text-gray-300">
+                            Music: {config.enableMusic ? "Enabled" : "Disabled"}
+                          </span>
+                        </div>
                       </div>
                     </div>
 

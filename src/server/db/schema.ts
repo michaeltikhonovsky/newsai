@@ -56,3 +56,37 @@ export const creditRefunds = createTable(
   }),
   (t) => [index("user_id_idx").on(t.userId), index("job_id_idx").on(t.jobId)]
 );
+
+export const recentVideos = createTable(
+  "recent_videos",
+  (d) => ({
+    id: d.integer().primaryKey().generatedByDefaultAsIdentity(),
+    userId: d
+      .integer("user_id")
+      .notNull()
+      .references(() => users.id),
+    jobId: d.text("job_id").notNull().unique(),
+    s3Url: d.text("s3_url"), // nullable - filled when job completes
+    status: d.text("status").notNull().default("pending"), // 'pending', 'processing', 'completed', 'failed'
+    title: d.text("title").notNull(),
+    mode: d.text("mode").notNull(), // 'single' or 'host_guest_host'
+    selectedHost: d.text("selected_host"),
+    selectedGuest: d.text("selected_guest"),
+    duration: d.integer("duration").notNull(), // 30 or 60
+    singleCharacterText: d.text("single_character_text"),
+    host1Text: d.text("host1_text"),
+    guest1Text: d.text("guest1_text"),
+    host2Text: d.text("host2_text"),
+    enableMusic: d.boolean("enable_music").default(true),
+    createdAt: d
+      .timestamp("created_at", { withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+  }),
+  (t) => [
+    index("user_id_videos_idx").on(t.userId),
+    index("job_id_videos_idx").on(t.jobId),
+    index("created_at_videos_idx").on(t.createdAt),
+    index("status_videos_idx").on(t.status),
+  ]
+);

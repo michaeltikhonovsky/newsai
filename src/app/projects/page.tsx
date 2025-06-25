@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Navbar } from "@/components/Navbar";
 import { toast } from "@/hooks/use-toast";
+import { api } from "@/trpc/react";
 import {
   ArrowLeft,
   Video,
@@ -23,22 +24,22 @@ import {
   VolumeX,
 } from "lucide-react";
 
-interface SavedProject {
-  id: string;
+// Use the database video type instead of SavedProject
+type VideoRecord = {
+  id: number;
   title: string;
-  mode: "single" | "host_guest_host";
-  selectedHost: string;
-  selectedGuest?: string;
-  duration: 30 | 60;
-  createdAt: string;
+  mode: string;
+  selectedHost: string | null;
+  selectedGuest?: string | null;
+  duration: number;
+  createdAt: Date;
   jobId: string;
-  videoUrl?: string; // For future use if videos are hosted
-  thumbnail?: string; // For future use
-  singleCharacterText?: string;
-  host1Text?: string;
-  guest1Text?: string;
-  host2Text?: string;
-}
+  s3Url: string | null;
+  singleCharacterText?: string | null;
+  host1Text?: string | null;
+  guest1Text?: string | null;
+  host2Text?: string | null;
+};
 
 const hosts: { [key: string]: string } = {
   lh: "Lester Holt",
@@ -52,8 +53,6 @@ const guests: { [key: string]: string } = {
 
 export default function ProjectsPage() {
   const router = useRouter();
-  const [projects, setProjects] = useState<SavedProject[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [playingVideo, setPlayingVideo] = useState<string | null>(null);
   const [videoStates, setVideoStates] = useState<{
     [key: string]: {
@@ -64,66 +63,25 @@ export default function ProjectsPage() {
     };
   }>({});
 
-  useEffect(() => {
-    loadProjects();
-  }, []);
+  // Fetch videos from database
+  const {
+    data: videos = [],
+    isLoading,
+    refetch,
+  } = api.videos.getRecentVideos.useQuery();
 
-  const loadProjects = () => {
-    try {
-      const savedProjects = localStorage.getItem("completedProjects");
-      if (savedProjects) {
-        const parsedProjects = JSON.parse(savedProjects);
-        // Sort by creation date, newest first
-        const sortedProjects = parsedProjects.sort(
-          (a: SavedProject, b: SavedProject) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
-        setProjects(sortedProjects);
-      }
-    } catch (error) {
-      console.error("Error loading projects:", error);
-      toast({
-        title: "Error Loading Projects",
-        description: "Failed to load your saved projects.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Note: Videos are now loaded automatically from database via tRPC
 
   const deleteProject = (projectId: string) => {
-    try {
-      const updatedProjects = projects.filter((p) => p.id !== projectId);
-
-      // ensure we still only keep the last 5 projects (newest first)
-      const sortedProjects = updatedProjects.sort(
-        (a: SavedProject, b: SavedProject) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-      const limitedProjects = sortedProjects.slice(0, 5);
-
-      setProjects(limitedProjects);
-      localStorage.setItem(
-        "completedProjects",
-        JSON.stringify(limitedProjects)
-      );
-
-      toast({
-        title: "Project Deleted",
-        description: "Project has been removed from your library.",
-      });
-    } catch (error) {
-      console.error("Error deleting project:", error);
-      toast({
-        title: "Error",
-        description: "Failed to delete project.",
-        variant: "destructive",
-      });
-    }
+    // TODO: Implement delete functionality if needed
+    // For now, videos expire after 24 hours automatically
+    toast({
+      title: "Feature Coming Soon",
+      description: "Videos automatically expire after 24 hours.",
+    });
   };
 
-  const downloadVideo = async (project: SavedProject) => {
+  const downloadVideo = async (project: VideoRecord) => {
     try {
       const response = await fetch(`/api/video/${project.jobId}`);
       if (!response.ok) {
@@ -154,8 +112,8 @@ export default function ProjectsPage() {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",
@@ -164,7 +122,7 @@ export default function ProjectsPage() {
     });
   };
 
-  const getProjectPreview = (project: SavedProject) => {
+  const getProjectPreview = (project: VideoRecord) => {
     if (project.mode === "single") {
       return (
         project.singleCharacterText?.substring(0, 100) + "..." ||
@@ -303,7 +261,8 @@ export default function ProjectsPage() {
               </Button>
             </div>
             <p className="text-lg text-gray-400">
-              {">"} View and manage your completed video projects.
+              {">"} View and manage your completed video projects from the past
+              24 hours.
             </p>
           </motion.div>
 
@@ -313,7 +272,7 @@ export default function ProjectsPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
           >
-            {projects.length === 0 ? (
+            {videos.length === 0 ? (
               <div className="text-center py-16">
                 <Video className="w-16 h-16 mx-auto mb-4 text-gray-500" />
                 <h3 className="text-xl font-mono text-gray-200 mb-2">
@@ -332,9 +291,10 @@ export default function ProjectsPage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {projects.map((project) => {
-                  initializeVideoState(project.id);
-                  const videoState = videoStates[project.id] || {
+                {videos.map((project) => {
+                  const projectIdStr = project.id.toString();
+                  initializeVideoState(projectIdStr);
+                  const videoState = videoStates[projectIdStr] || {
                     isPlaying: false,
                     isMuted: false,
                     isLoading: false,
@@ -357,7 +317,7 @@ export default function ProjectsPage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => deleteProject(project.id)}
+                            onClick={() => deleteProject(projectIdStr)}
                             className="text-gray-400 hover:text-red-400 p-1"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -378,19 +338,19 @@ export default function ProjectsPage() {
                             ) : (
                               <>
                                 <video
-                                  id={`video-${project.id}`}
+                                  id={`video-${projectIdStr}`}
                                   className="w-full aspect-video object-cover"
                                   controls={false}
                                   muted={videoState.isMuted}
                                   onLoadStart={() =>
-                                    handleVideoLoadStart(project.id)
+                                    handleVideoLoadStart(projectIdStr)
                                   }
                                   onLoadedData={() =>
-                                    handleVideoLoadedData(project.id)
+                                    handleVideoLoadedData(projectIdStr)
                                   }
                                   onError={() =>
                                     handleVideoError(
-                                      project.id,
+                                      projectIdStr,
                                       "Failed to load video"
                                     )
                                   }
@@ -398,8 +358,8 @@ export default function ProjectsPage() {
                                     setPlayingVideo(null);
                                     setVideoStates((prev) => ({
                                       ...prev,
-                                      [project.id]: {
-                                        ...prev[project.id],
+                                      [projectIdStr]: {
+                                        ...prev[projectIdStr],
                                         isPlaying: false,
                                       },
                                     }));
@@ -419,7 +379,7 @@ export default function ProjectsPage() {
                                       variant="ghost"
                                       size="sm"
                                       onClick={() =>
-                                        toggleVideoPlay(project.id)
+                                        toggleVideoPlay(projectIdStr)
                                       }
                                       className="bg-black/60 text-white hover:bg-black/80 p-2"
                                       disabled={videoState.isLoading}
@@ -436,7 +396,7 @@ export default function ProjectsPage() {
                                       variant="ghost"
                                       size="sm"
                                       onClick={() =>
-                                        toggleVideoMute(project.id)
+                                        toggleVideoMute(projectIdStr)
                                       }
                                       className="bg-black/60 text-white hover:bg-black/80 p-2"
                                     >

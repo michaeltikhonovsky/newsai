@@ -40,24 +40,64 @@ export async function GET(
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    // stream the video file through api
-    const contentType = response.headers.get("content-type") || "video/mp4";
-    const contentLength = response.headers.get("content-length");
+    // Check if response is JSON (S3 URL) or binary (video file)
+    const contentType = response.headers.get("content-type") || "";
 
-    const responseHeaders = new Headers({
-      "Content-Type": contentType,
-      "Cache-Control": "public, max-age=31536000, immutable",
-    });
+    if (contentType.includes("application/json")) {
+      // Response is JSON with S3 URL - fetch the video from S3 and stream it
+      const jsonData = await response.json();
 
-    if (contentLength) {
-      responseHeaders.set("Content-Length", contentLength);
+      if (jsonData.s3Url || jsonData.videoUrl || jsonData.url) {
+        const videoUrl = jsonData.s3Url || jsonData.videoUrl || jsonData.url;
+
+        // Fetch the video from S3 and stream it
+        const videoResponse = await fetch(videoUrl);
+
+        if (!videoResponse.ok) {
+          throw new Error(
+            `Failed to fetch video from S3: ${videoResponse.status}`
+          );
+        }
+
+        const videoContentType =
+          videoResponse.headers.get("content-type") || "video/mp4";
+        const videoContentLength = videoResponse.headers.get("content-length");
+
+        const responseHeaders = new Headers({
+          "Content-Type": videoContentType,
+          "Cache-Control": "public, max-age=31536000, immutable",
+        });
+
+        if (videoContentLength) {
+          responseHeaders.set("Content-Length", videoContentLength);
+        }
+
+        return new NextResponse(videoResponse.body, {
+          status: 200,
+          headers: responseHeaders,
+        });
+      } else {
+        throw new Error("No video URL found in response");
+      }
+    } else {
+      // Response is binary video file - stream it through
+      const contentLength = response.headers.get("content-length");
+
+      const responseHeaders = new Headers({
+        "Content-Type": contentType || "video/mp4",
+        "Cache-Control": "public, max-age=31536000, immutable",
+      });
+
+      if (contentLength) {
+        responseHeaders.set("Content-Length", contentLength);
+      }
+
+      // stream the response
+      return new NextResponse(response.body, {
+        status: 200,
+        headers: responseHeaders,
+      });
     }
-
-    // stream the response
-    return new NextResponse(response.body, {
-      status: 200,
-      headers: responseHeaders,
-    });
   } catch (error) {
     console.error("Error fetching video:", error);
     return NextResponse.json(

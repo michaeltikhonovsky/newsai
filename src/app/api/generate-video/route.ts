@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuth } from "@clerk/nextjs/server";
 import { db } from "@/server/db";
-import { users } from "@/server/db/schema";
+import { users, recentVideos } from "@/server/db/schema";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
@@ -16,6 +15,8 @@ const API_AUTH_KEY = process.env.EXTERNAL_API_AUTH_KEY;
 
 // validation schema
 const generateVideoSchema = z.object({
+  userId: z.string(),
+  title: z.string(),
   mode: z.union([z.literal("single"), z.literal("host_guest_host")]),
   selectedHost: z.string(),
   selectedGuest: z.string().optional(),
@@ -27,30 +28,25 @@ const generateVideoSchema = z.object({
     .union([z.literal(30), z.literal(60)])
     .optional()
     .default(30),
+  enableMusic: z.boolean().optional().default(true),
 });
 
 export async function POST(request: NextRequest) {
   try {
-    // check authentication
-    const { userId } = getAuth(request);
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const body = await request.json();
+    const validatedData = generateVideoSchema.parse(body);
 
-    // get user from database
+    // get user from database using the provided userId
     const user = await db
       .select()
       .from(users)
-      .where(eq(users.clerkId, userId))
+      .where(eq(users.clerkId, validatedData.userId))
       .limit(1)
       .then((res) => res[0]);
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
-
-    const body = await request.json();
-    const validatedData = generateVideoSchema.parse(body);
 
     const duration = validatedData.duration;
     const requiredCredits = CREDIT_COSTS[duration];
@@ -102,6 +98,8 @@ export async function POST(request: NextRequest) {
     try {
       // prepare request for external api
       const requestBody = {
+        userId: validatedData.userId,
+        title: validatedData.title,
         mode: validatedData.mode,
         selectedHost: validatedData.selectedHost,
         selectedGuest: validatedData.selectedGuest,
@@ -109,6 +107,8 @@ export async function POST(request: NextRequest) {
         host1Text: validatedData.host1Text,
         guest1Text: validatedData.guest1Text,
         host2Text: validatedData.host2Text,
+        duration: validatedData.duration,
+        enableMusic: validatedData.enableMusic,
       };
 
       const headers: Record<string, string> = {
@@ -155,6 +155,36 @@ export async function POST(request: NextRequest) {
           creditBalance: userCredits - requiredCredits,
         })
         .where(eq(users.id, user.id));
+
+      // save job info to database immediately
+      await db.insert(recentVideos).values({
+        userId: user.id,
+        jobId: result.jobId,
+        s3Url: null, // will be filled when job completes
+        status: "pending",
+        title: validatedData.title,
+        mode: validatedData.mode,
+        selectedHost: validatedData.selectedHost,
+        selectedGuest: validatedData.selectedGuest,
+        duration: duration,
+        singleCharacterText:
+          validatedData.mode === "single"
+            ? validatedData.singleCharacterText
+            : undefined,
+        host1Text:
+          validatedData.mode === "host_guest_host"
+            ? validatedData.host1Text
+            : undefined,
+        guest1Text:
+          validatedData.mode === "host_guest_host"
+            ? validatedData.guest1Text
+            : undefined,
+        host2Text:
+          validatedData.mode === "host_guest_host"
+            ? validatedData.host2Text
+            : undefined,
+        enableMusic: validatedData.enableMusic,
+      });
 
       // return response in the exact format the frontend expects
       return NextResponse.json({

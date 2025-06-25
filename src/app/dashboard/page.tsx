@@ -7,12 +7,20 @@ import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { IoVideocamOutline } from "react-icons/io5";
+import { api } from "@/trpc/react";
 
 export default function Dashboard() {
   const { isLoaded, isSignedIn, user } = useUser();
   const router = useRouter();
   const [userData, setUserData] = useState({ firstName: "", lastName: "" });
-  const [projectCount, setProjectCount] = useState(0);
+
+  // Get recent videos from database
+  const { data: videos, isLoading: videosLoading } =
+    api.videos.getRecentVideos.useQuery(undefined, {
+      enabled: isLoaded && isSignedIn,
+    });
+
+  const projectCount = videos?.length || 0;
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
@@ -26,25 +34,8 @@ export default function Dashboard() {
         firstName: user.firstName || "",
         lastName: user.lastName || "",
       });
-
-      // Use data from Clerk user object directly
     }
-
-    // Load project count
-    loadProjectCount();
   }, [isLoaded, isSignedIn, user]);
-
-  const loadProjectCount = () => {
-    try {
-      const savedProjects = localStorage.getItem("completedProjects");
-      if (savedProjects) {
-        const projects = JSON.parse(savedProjects);
-        setProjectCount(projects.length);
-      }
-    } catch (error) {
-      console.error("Error loading project count:", error);
-    }
-  };
 
   const handleCreateProject = () => {
     router.push("/project/config");
@@ -137,7 +128,7 @@ export default function Dashboard() {
                   ? "You haven't created any projects yet. Start by creating a new one."
                   : `You have ${projectCount} completed project${
                       projectCount === 1 ? "" : "s"
-                    }. View and manage the past 5 projects here.`}
+                    }. View and manage your projects from the past 24 hours here.`}
               </p>
               <Button
                 variant="outline"

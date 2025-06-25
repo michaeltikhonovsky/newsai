@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback } from "react";
 import { api } from "@/trpc/react";
 import { toast } from "@/hooks/use-toast";
+import { useGlobalVideoProgressContext } from "@/components/providers/GlobalVideoProgressProvider";
+import { useUser } from "@clerk/nextjs";
 
 interface JobStatus {
   jobId: string;
@@ -17,6 +19,11 @@ interface VideoConfig {
   duration: 30 | 60;
   selectedHost: string;
   selectedGuest?: string;
+  singleCharacterText?: string;
+  host1Text?: string;
+  guest1Text?: string;
+  host2Text?: string;
+  enableMusic: boolean;
 }
 
 export const useVideoGeneration = (
@@ -29,10 +36,21 @@ export const useVideoGeneration = (
   const [pollingStartTime, setPollingStartTime] = useState<number | null>(null);
   const [consecutiveErrors, setConsecutiveErrors] = useState(0);
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
+  const [currentConfigWithScripts, setCurrentConfigWithScripts] =
+    useState<VideoConfig | null>(null);
   const consecutiveErrorsRef = useRef(0);
+
+  // Clerk user
+  const { user } = useUser();
 
   // tRPC utils for invalidating queries
   const utils = api.useUtils();
+
+  // Global video progress context
+  const { addGeneration, removeGeneration, updateGeneration } =
+    useGlobalVideoProgressContext();
+
+  // Note: Video saving is now handled by the backend
 
   // refund mutation
   const refundCreditsMutation = api.users.refundCredits.useMutation({
@@ -133,6 +151,27 @@ export const useVideoGeneration = (
         variant: "destructive",
       });
 
+      // Remove from global progress tracker on failure
+      if (jobId) {
+        removeGeneration(jobId);
+
+        // Remove from pending jobs localStorage since it failed
+        try {
+          const pendingJobs = JSON.parse(
+            localStorage.getItem("pendingJobs") || "[]"
+          );
+          const updatedJobs = pendingJobs.filter(
+            (job: any) => job.jobId !== jobId
+          );
+          localStorage.setItem("pendingJobs", JSON.stringify(updatedJobs));
+        } catch (error) {
+          console.error(
+            "Failed to remove failed job from localStorage:",
+            error
+          );
+        }
+      }
+
       // Reset UI back to script input
       setIsGenerating(false);
       setJobStatus(null);
@@ -198,9 +237,19 @@ export const useVideoGeneration = (
           );
         }
 
+        console.log("📊 Current job status:", {
+          jobId: status.jobId,
+          status: status.status,
+          progress: status.progress,
+          timestamp: new Date().toISOString(),
+        });
+
         setJobStatus(status);
         setConsecutiveErrors(0); // reset error counter on success
         consecutiveErrorsRef.current = 0;
+
+        // Update global progress tracking with current status
+        updateGeneration(jobId, status);
 
         // Check for timeout (15 minutes max)
         const now = Date.now();
@@ -222,11 +271,53 @@ export const useVideoGeneration = (
         } else if (status.status === "failed") {
           handleJobFailure(jobId, status.error || "Video generation failed");
         } else if (status.status === "completed") {
-          toast({
-            title: "Video Generated Successfully!",
-            description: "Your news video is ready to download.",
-          });
+          console.log("🎉 Video generation completed! Status:", status);
+
+          // Check if we've already shown a completion toast for this job
+          const shownCompletions = JSON.parse(
+            sessionStorage.getItem("shownCompletions") || "[]"
+          );
+          if (!shownCompletions.includes(jobId)) {
+            toast({
+              title: "Video Generated Successfully!",
+              description: "Your news video is ready to download.",
+            });
+
+            // Mark this job as having shown a completion toast
+            shownCompletions.push(jobId);
+            sessionStorage.setItem(
+              "shownCompletions",
+              JSON.stringify(shownCompletions)
+            );
+          }
+
           setIsGenerating(false);
+
+          // Remove from global progress tracker
+          removeGeneration(jobId);
+
+          // Remove from pending jobs localStorage since it's completed
+          try {
+            const pendingJobs = JSON.parse(
+              localStorage.getItem("pendingJobs") || "[]"
+            );
+            const updatedJobs = pendingJobs.filter(
+              (job: any) => job.jobId !== jobId
+            );
+            localStorage.setItem("pendingJobs", JSON.stringify(updatedJobs));
+
+            // Clean up sessionStorage if no more pending jobs
+            if (updatedJobs.length === 0) {
+              sessionStorage.removeItem("shownCompletions");
+            }
+          } catch (error) {
+            console.error(
+              "Failed to remove completed job from localStorage:",
+              error
+            );
+          }
+
+          // Note: Database saving is now handled by the backend automatically
 
           // Call the success callback if provided
           if (onSuccess) {
@@ -328,13 +419,22 @@ export const useVideoGeneration = (
         }
       }
     },
-    [pollingStartTime, handleJobFailure, onSuccess]
+    [pollingStartTime, handleJobFailure, onSuccess, updateGeneration]
   );
 
   // start video generation
   const startGeneration = useCallback(
     async (requestBody: any) => {
       if (!config) return { success: false, error: "No configuration found" };
+
+      // Update config with script data from request body
+      const updatedConfig = {
+        ...config,
+        singleCharacterText: requestBody.singleCharacterText,
+        host1Text: requestBody.host1Text,
+        guest1Text: requestBody.guest1Text,
+        host2Text: requestBody.host2Text,
+      };
 
       setIsGenerating(true);
       setJobStatus(null);
@@ -343,14 +443,31 @@ export const useVideoGeneration = (
       setConsecutiveErrors(0);
       consecutiveErrorsRef.current = 0;
       setCurrentJobId(null);
+      setCurrentConfigWithScripts(updatedConfig);
+
+      // Generate a temporary ID and add to progress tracker immediately
+      const tempId = `temp-${Date.now()}`;
+      const title =
+        updatedConfig.mode === "single"
+          ? `Single Host Video (${updatedConfig.duration}s)`
+          : `Host & Guest Video (${updatedConfig.duration}s)`;
+      addGeneration(tempId, title);
 
       try {
+        if (!user?.id) {
+          throw new Error("User not authenticated");
+        }
+
         const response = await fetch(`/api/generate-video`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(requestBody),
+          body: JSON.stringify({
+            ...requestBody,
+            userId: user.id,
+            title: title,
+          }),
         });
 
         if (!response.ok) {
@@ -368,11 +485,36 @@ export const useVideoGeneration = (
 
         // start polling for status
         setCurrentJobId(result.jobId);
+
+        // Save jobId to localStorage for recovery if user closes browser
+        try {
+          const pendingJobs = JSON.parse(
+            localStorage.getItem("pendingJobs") || "[]"
+          );
+          const newJob = {
+            jobId: result.jobId,
+            title,
+            startedAt: new Date().toISOString(),
+          };
+          pendingJobs.push(newJob);
+          localStorage.setItem("pendingJobs", JSON.stringify(pendingJobs));
+        } catch (error) {
+          console.error("Failed to save pending job to localStorage:", error);
+        }
+
+        // Remove temporary generation and add real one
+        removeGeneration(tempId);
+        addGeneration(result.jobId, title);
+
         pollJobStatus(result.jobId);
 
         return { success: true, jobId: result.jobId };
       } catch (err: any) {
         console.error("Error generating video:", err);
+
+        // Remove temporary generation on error
+        removeGeneration(tempId);
+
         toast({
           title: "Failed to Start Generation",
           description: `Failed to start video generation: ${err.message}`,
@@ -382,11 +524,16 @@ export const useVideoGeneration = (
         return { success: false, error: err.message };
       }
     },
-    [config, pollJobStatus, utils]
+    [config, pollJobStatus, utils, addGeneration, removeGeneration]
   );
 
   // reset generation state
   const resetGeneration = useCallback(() => {
+    // Remove from global progress tracker if there's an active job
+    if (currentJobId) {
+      removeGeneration(currentJobId);
+    }
+
     setIsGenerating(false);
     setJobStatus(null);
     setHasRefunded(false);
@@ -394,7 +541,25 @@ export const useVideoGeneration = (
     setConsecutiveErrors(0);
     consecutiveErrorsRef.current = 0;
     setCurrentJobId(null);
-  }, []);
+    setCurrentConfigWithScripts(null);
+  }, [currentJobId, removeGeneration]);
+
+  // restore generation state from a job ID
+  const restoreFromJobId = useCallback(
+    async (jobId: string) => {
+      try {
+        setCurrentJobId(jobId);
+        setIsGenerating(true);
+        setPollingStartTime(Date.now());
+
+        // Start polling this job
+        pollJobStatus(jobId);
+      } catch (error) {
+        console.error("Error restoring generation state:", error);
+      }
+    },
+    [pollJobStatus]
+  );
 
   return {
     // State
@@ -408,6 +573,7 @@ export const useVideoGeneration = (
     // Actions
     startGeneration,
     resetGeneration,
+    restoreFromJobId,
     handleJobFailure,
 
     // Utils

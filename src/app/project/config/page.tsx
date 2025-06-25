@@ -7,7 +7,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Navbar } from "@/components/Navbar";
-import { ArrowLeft, Check, Users, User, Clock } from "lucide-react";
+import { ArrowLeft, Check, Users, User, Clock, Music } from "lucide-react";
 
 // Character definitions
 interface Character {
@@ -34,6 +34,7 @@ interface VideoConfig {
   host1Text: string;
   guest1Text: string;
   host2Text: string;
+  enableMusic: boolean;
 }
 
 const hosts: Character[] = [
@@ -218,6 +219,7 @@ export default function ProjectConfigPage() {
   const [duration, setDuration] = useState<30 | 60>(30);
   const [selectedHost, setSelectedHost] = useState<string>("");
   const [selectedGuest, setSelectedGuest] = useState<string>("");
+  const [enableMusic, setEnableMusic] = useState<boolean>(true);
 
   const handleModeChange = (newMode: "single" | "host_guest_host") => {
     setMode(newMode);
@@ -250,6 +252,7 @@ export default function ProjectConfigPage() {
       host1Text: "",
       guest1Text: "",
       host2Text: "",
+      enableMusic,
     };
 
     // Store config in localStorage or pass to next page
@@ -539,47 +542,44 @@ export default function ProjectConfigPage() {
                       </div>
                     </div>
                   )}
-
-                  {/* Selected Configuration Display */}
-                  {(selectedHost || selectedGuest) && (
-                    <div className="mt-6 p-4 bg-gray-800/50 border border-gray-600 rounded-lg">
-                      <h4 className="font-mono text-gray-300 mb-2">
-                        Selected Configuration:
-                      </h4>
-                      <div className="text-sm text-gray-400 space-y-1">
-                        <p>
-                          Mode:{" "}
-                          <span className="text-indigo-300">
-                            {mode === "single" ? "Single Host" : "Host + Guest"}
-                          </span>
-                        </p>
-                        <p>
-                          Duration:{" "}
-                          <span className="text-indigo-300">
-                            {duration} seconds
-                          </span>
-                        </p>
-                        {selectedHost && (
-                          <p>
-                            Host:{" "}
-                            <span className="text-indigo-300">
-                              {hosts.find((h) => h.id === selectedHost)?.name}
-                            </span>
-                          </p>
-                        )}
-                        {mode === "host_guest_host" && selectedGuest && (
-                          <p>
-                            Guest:{" "}
-                            <span className="text-indigo-300">
-                              {guests.find((g) => g.id === selectedGuest)?.name}
-                            </span>
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  )}
                 </CardContent>
               </Card>
+
+              {/* Music Settings */}
+              <motion.div
+                className={`mt-6 p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                  enableMusic
+                    ? "border-indigo-400 bg-indigo-500/10"
+                    : "border-gray-600 bg-gray-800/50 hover:border-gray-500"
+                }`}
+                onClick={() => setEnableMusic(!enableMusic)}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`w-6 h-6 rounded border-2 flex items-center justify-center ${
+                      enableMusic
+                        ? "border-indigo-400 bg-indigo-400"
+                        : "border-gray-500"
+                    }`}
+                  >
+                    {enableMusic && <Check className="w-4 h-4 text-white" />}
+                  </div>
+                  <div className="flex-1">
+                    <h3
+                      className={`font-mono font-bold ${
+                        enableMusic ? "text-indigo-200" : "text-gray-300"
+                      }`}
+                    >
+                      Include Background Music
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      Add professional background music to your video
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
 
               {/* Continue Button */}
               <motion.div

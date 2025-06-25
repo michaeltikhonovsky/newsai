@@ -4,6 +4,8 @@ import { JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { CoreProviders } from "@/components/providers/CoreProviders";
+import { GlobalVideoProgress } from "@/components/GlobalVideoProgress";
+import { PendingJobsChecker } from "@/components/PendingJobsChecker";
 
 const jetbrainsMono = JetBrains_Mono({
   variable: "--font-jetbrains-mono",
@@ -28,7 +30,11 @@ export default function RootLayout({
         <body
           className={`min-h-screen ${jetbrainsMono.variable} antialiased bg-background text-white`}
         >
-          <CoreProviders>{children}</CoreProviders>
+          <CoreProviders>
+            {children}
+            <GlobalVideoProgress />
+            <PendingJobsChecker />
+          </CoreProviders>
         </body>
       </html>
     </ClerkProvider>
