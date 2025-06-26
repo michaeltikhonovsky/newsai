@@ -140,9 +140,12 @@ export default function Home() {
             <div className="relative w-full max-w-lg aspect-video rounded-lg border border-gray-800 overflow-hidden">
               {demoVideoState.error ? (
                 <div className="aspect-video flex items-center justify-center bg-gray-800">
-                  <div className="text-center text-gray-400">
+                  <div className="text-center text-gray-400 p-4">
                     <IoVideocamOutline className="w-8 h-8 mx-auto mb-2" />
-                    <p className="text-xs">Video unavailable</p>
+                    <p className="text-xs mb-2">Video unavailable</p>
+                    <p className="text-xs text-gray-500">
+                      Try refreshing the page or check your connection
+                    </p>
                   </div>
                 </div>
               ) : (
@@ -153,6 +156,8 @@ export default function Home() {
                     controls={false}
                     muted={demoVideoState.isMuted}
                     preload="metadata"
+                    playsInline
+                    webkit-playsinline="true"
                     onLoadStart={handleDemoVideoLoadStart}
                     onLoadedData={handleDemoVideoLoadedData}
                     onError={() => handleDemoVideoError("Failed to load video")}
