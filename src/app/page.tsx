@@ -20,6 +20,7 @@ export default function Home() {
     isMuted: false,
     isLoading: false,
     error: null as string | null,
+    showControls: false,
   });
 
   // Animation variants
@@ -81,6 +82,21 @@ export default function Home() {
 
   const handleDemoVideoLoadedData = () => {
     setDemoVideoState((prev) => ({ ...prev, isLoading: false }));
+  };
+
+  const handleVideoClick = () => {
+    setDemoVideoState((prev) => ({
+      ...prev,
+      showControls: !prev.showControls,
+    }));
+  };
+
+  const handleVideoTouch = () => {
+    setDemoVideoState((prev) => ({ ...prev, showControls: true }));
+    // Hide controls after 3 seconds
+    setTimeout(() => {
+      setDemoVideoState((prev) => ({ ...prev, showControls: false }));
+    }, 3000);
   };
 
   return (
@@ -152,12 +168,15 @@ export default function Home() {
                 <>
                   <video
                     id="demo-video"
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover cursor-pointer"
                     controls={false}
                     muted={demoVideoState.isMuted}
                     preload="metadata"
                     playsInline
                     webkit-playsinline="true"
+                    poster="/demos/demo1-poster.jpg"
+                    onClick={handleVideoClick}
+                    onTouchStart={handleVideoTouch}
                     onLoadStart={handleDemoVideoLoadStart}
                     onLoadedData={handleDemoVideoLoadedData}
                     onError={() => handleDemoVideoError("Failed to load video")}
@@ -173,12 +192,21 @@ export default function Home() {
                   </video>
 
                   {/* Video Controls Overlay */}
-                  <div className="absolute inset-0 bg-black/30 opacity-0 hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
+                  <div
+                    className={`absolute inset-0 bg-black/30 transition-opacity duration-200 flex items-center justify-center ${
+                      demoVideoState.showControls
+                        ? "opacity-100"
+                        : "opacity-0 hover:opacity-100 md:opacity-0"
+                    }`}
+                  >
                     <div className="flex items-center gap-2">
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={toggleDemoVideoPlay}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleDemoVideoPlay();
+                        }}
                         className="bg-black/60 text-white hover:bg-black/80 p-2"
                         disabled={demoVideoState.isLoading}
                       >
@@ -193,7 +221,10 @@ export default function Home() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={toggleDemoVideoMute}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleDemoVideoMute();
+                        }}
                         className="bg-black/60 text-white hover:bg-black/80 p-2"
                       >
                         {demoVideoState.isMuted ? (
@@ -203,6 +234,37 @@ export default function Home() {
                         )}
                       </Button>
                     </div>
+                  </div>
+
+                  {/* Always visible on mobile controls */}
+                  <div className="absolute bottom-4 right-4 flex items-center gap-2 md:hidden">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={toggleDemoVideoPlay}
+                      className="bg-black/60 text-white hover:bg-black/80 p-2"
+                      disabled={demoVideoState.isLoading}
+                    >
+                      {demoVideoState.isLoading ? (
+                        <div className="w-4 h-4 animate-spin border-2 border-white border-t-transparent rounded-full" />
+                      ) : demoVideoState.isPlaying ? (
+                        <Pause className="w-4 h-4" />
+                      ) : (
+                        <Play className="w-4 h-4" />
+                      )}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={toggleDemoVideoMute}
+                      className="bg-black/60 text-white hover:bg-black/80 p-2"
+                    >
+                      {demoVideoState.isMuted ? (
+                        <VolumeX className="w-4 h-4" />
+                      ) : (
+                        <Volume2 className="w-4 h-4" />
+                      )}
+                    </Button>
                   </div>
 
                   <div className="absolute top-4 left-4 bg-black/70 px-3 py-1 rounded-md">
