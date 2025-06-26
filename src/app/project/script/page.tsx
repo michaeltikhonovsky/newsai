@@ -160,10 +160,32 @@ const getProcessingSteps = (
   else if (progress.includes("concatenating")) {
     currentStepIndex = 1; // concatenate
   }
-  // Audio generation (simplified for both single audio steps and multi-character audio)
+  // Video processing (check before audio to catch the transition)
   else if (
+    progress.includes("🎬 processing video footage") ||
+    progress.includes("processing video footage") ||
+    progress.includes("🎬 processing video segments") ||
+    progress.includes("processing video segments") ||
+    progress.includes("processing video") ||
+    progress.includes("video footage")
+  ) {
+    currentStepIndex = 1; // video for multi-character mode
+  }
+  // All audio completed transition point
+  else if (
+    progress.includes("✅ all audio generation completed") ||
+    progress.includes("all audio generation completed in parallel")
+  ) {
+    currentStepIndex = 1; // move to video step
+  }
+  // Audio generation
+  else if (
+    progress.includes("🎙️ generating audio for") ||
+    progress.includes("generating audio for") ||
     progress.includes("generating audio") ||
     progress.includes("processing audio generation") ||
+    progress.includes("✅ audio generated for") ||
+    progress.includes("audio generated for") ||
     (progress.includes("generating audio for") &&
       (progress.includes("introduction") ||
         progress.includes("main segment") ||
@@ -232,13 +254,30 @@ const getProcessingSteps = (
       progress.includes("background music")
     ) {
       currentStepIndex = 2; // music
-    } else if (progress.includes("processing video")) {
+    } else if (
+      progress.includes("🎬 processing video footage") ||
+      progress.includes("processing video footage") ||
+      progress.includes("processing video") ||
+      progress.includes("video footage")
+    ) {
       currentStepIndex = 1; // video
     } else if (
+      progress.includes("🎙️ generating audio for") ||
+      progress.includes("generating audio for") ||
       progress.includes("generating audio") ||
-      progress.includes("processing audio generation")
+      progress.includes("processing audio generation") ||
+      progress.includes("✅ audio generated for") ||
+      progress.includes("audio generated for")
     ) {
-      currentStepIndex = 0; // audio
+      // For single character mode, transition immediately after audio completion
+      if (
+        progress.includes("✅ audio generated for") ||
+        progress.includes("audio generated for")
+      ) {
+        currentStepIndex = 1; // move to video step for smooth transition in single mode
+      } else {
+        currentStepIndex = 0; // audio
+      }
     }
   }
 
@@ -271,7 +310,8 @@ const getProcessingSteps = (
       current =
         progress.includes(step.label.toLowerCase()) ||
         (step.key === "audio" &&
-          (progress.includes("generating audio") ||
+          (progress.includes("🎙️ generating audio") ||
+            progress.includes("generating audio") ||
             progress.includes("processing audio generation") ||
             (progress.includes("generating audio for") &&
               (progress.includes("introduction") ||
@@ -279,6 +319,11 @@ const getProcessingSteps = (
                 progress.includes("conclusion") ||
                 progress.includes("host") ||
                 progress.includes("guest"))))) ||
+        (step.key === "video" &&
+          (progress.includes("🎬 processing video footage") ||
+            progress.includes("processing video footage") ||
+            progress.includes("processing video") ||
+            progress.includes("video footage"))) ||
         (step.key === "lipsync" &&
           (progress.includes("lipsync processing in progress") ||
             progress.includes("starting lipsync processing") ||
