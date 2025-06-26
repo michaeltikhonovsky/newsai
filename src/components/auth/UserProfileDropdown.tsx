@@ -34,10 +34,13 @@ export function UserProfileDropdown() {
     lastName: "",
   });
 
+  const { data: dbUser, refetch: refetchUser } = api.users.getUser.useQuery();
+
   const updateUserMutation = api.users.updateUser.useMutation({
     onSuccess: () => {
       toast.success("Profile updated successfully");
       setIsProfileModalOpen(false);
+      refetchUser(); // Refetch user data after update
     },
     onError: (error: any) => {
       console.error("Profile update error:", error);
@@ -78,19 +81,30 @@ export function UserProfileDropdown() {
   const totalPrice = creditQuantity * 5;
 
   useEffect(() => {
-    if (user) {
+    if (dbUser) {
       setProfileData({
-        firstName: user.firstName || "",
-        lastName: user.lastName || "",
+        firstName: dbUser.firstName ?? "",
+        lastName: dbUser.lastName ?? "",
       });
     }
-  }, [user]);
+  }, [dbUser]);
+
+  // Reset form data to current database values when modal opens
+  useEffect(() => {
+    if (isProfileModalOpen && dbUser) {
+      setProfileData({
+        firstName: dbUser.firstName ?? "",
+        lastName: dbUser.lastName ?? "",
+      });
+    }
+  }, [isProfileModalOpen, dbUser]);
 
   if (!user) return null;
 
   const getInitial = () => {
-    if (user.firstName) return user.firstName[0].toUpperCase();
-    if (user.primaryEmailAddress)
+    if (user.firstName?.trim()) return user.firstName.trim()[0].toUpperCase();
+    if (user.lastName?.trim()) return user.lastName.trim()[0].toUpperCase();
+    if (user.primaryEmailAddress?.emailAddress)
       return user.primaryEmailAddress.emailAddress[0].toUpperCase();
     return "?";
   };
@@ -103,13 +117,10 @@ export function UserProfileDropdown() {
   const handleProfileUpdate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsUpdating(true);
-    const formData = new FormData(e.currentTarget);
-    const firstName = formData.get("firstName") as string;
-    const lastName = formData.get("lastName") as string;
 
     try {
-      const trimmedFirstName = firstName.trim();
-      const trimmedLastName = lastName.trim();
+      const trimmedFirstName = profileData.firstName?.trim() ?? "";
+      const trimmedLastName = profileData.lastName?.trim() ?? "";
 
       await updateUserMutation.mutateAsync({
         firstName: trimmedFirstName || undefined,
@@ -125,6 +136,16 @@ export function UserProfileDropdown() {
     } finally {
       setIsUpdating(false);
     }
+  };
+
+  const handleInputChange = (
+    field: "firstName" | "lastName",
+    value: string
+  ) => {
+    setProfileData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
   };
 
   return (
@@ -186,7 +207,8 @@ export function UserProfileDropdown() {
               <Input
                 id="firstName"
                 name="firstName"
-                defaultValue={profileData.firstName}
+                value={profileData.firstName}
+                onChange={(e) => handleInputChange("firstName", e.target.value)}
                 className="bg-indigo-950/60 border border-indigo-400/70 rounded-md px-3 py-2 text-indigo-200 font-mono focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all"
               />
             </div>
@@ -200,7 +222,8 @@ export function UserProfileDropdown() {
               <Input
                 id="lastName"
                 name="lastName"
-                defaultValue={profileData.lastName}
+                value={profileData.lastName}
+                onChange={(e) => handleInputChange("lastName", e.target.value)}
                 className="bg-indigo-950/60 border border-indigo-400/70 rounded-md px-3 py-2 text-indigo-200 font-mono focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all"
               />
             </div>

@@ -14,6 +14,11 @@ export default function Dashboard() {
   const router = useRouter();
   const [userData, setUserData] = useState({ firstName: "", lastName: "" });
 
+  // Get user data from database
+  const { data: dbUser } = api.users.getUser.useQuery(undefined, {
+    enabled: isLoaded && isSignedIn,
+  });
+
   // Get recent videos from database
   const { data: videos, isLoading: videosLoading } =
     api.videos.getRecentVideos.useQuery(undefined, {
@@ -29,13 +34,13 @@ export default function Dashboard() {
   }, [isLoaded, isSignedIn, router]);
 
   useEffect(() => {
-    if (isLoaded && isSignedIn && user) {
+    if (dbUser) {
       setUserData({
-        firstName: user.firstName || "",
-        lastName: user.lastName || "",
+        firstName: dbUser.firstName || "",
+        lastName: dbUser.lastName || "",
       });
     }
-  }, [isLoaded, isSignedIn, user]);
+  }, [dbUser]);
 
   const handleCreateProject = () => {
     router.push("/project/config");
