@@ -273,6 +273,34 @@ export const useVideoGeneration = (
         } else if (status.status === "completed") {
           console.log("🎉 Video generation completed! Status:", status);
 
+          // Show success toast immediately
+          const shownCompletions = JSON.parse(
+            sessionStorage.getItem("shownCompletions") || "[]"
+          );
+
+          if (!shownCompletions.includes(jobId)) {
+            const title =
+              currentConfigWithScripts?.mode === "single"
+                ? `Single Host Video (${currentConfigWithScripts.duration}s)`
+                : `Host & Guest Video (${currentConfigWithScripts?.duration}s)`;
+
+            toast({
+              title: "Video Generation Complete! 🎉",
+              description: `"${title}" has finished generating. Check your Projects page to view it.`,
+            });
+
+            // Mark this job as having shown a toast
+            shownCompletions.push(jobId);
+            sessionStorage.setItem(
+              "shownCompletions",
+              JSON.stringify(shownCompletions)
+            );
+
+            console.log(
+              `✅ Job ${jobId} completed - showing success toast from individual polling`
+            );
+          }
+
           setIsGenerating(false);
 
           // Remove from global progress tracker

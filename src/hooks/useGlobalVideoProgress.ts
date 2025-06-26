@@ -84,17 +84,18 @@ export const useGlobalVideoProgress = () => {
         const updatedGenerations = await Promise.all(statusPromises);
 
         // Check for newly completed/failed jobs and show toasts
+        // Only show toasts for jobs that just changed status
         const completedJobs = updatedGenerations.filter((gen) => {
-          const status = gen.lastStatus?.status;
-          const previousStatus = generations.find((g) => g.jobId === gen.jobId)
-            ?.lastStatus?.status;
+          const currentStatus = gen.lastStatus?.status;
+          const previousGen = generations.find((g) => g.jobId === gen.jobId);
+          const previousStatus = previousGen?.lastStatus?.status;
 
-          // Only show toast if status just changed to completed/failed
+          // Show toast if status just changed to completed/failed
           return (
-            (status === "completed" || status === "failed") &&
-            previousStatus !== status &&
-            previousStatus !== undefined
-          );
+            (currentStatus === "completed" || currentStatus === "failed") &&
+            previousStatus !== currentStatus &&
+            previousStatus
+          ); // Only if we had a previous status (not first poll)
         });
 
         // Show success/failure toasts for newly completed jobs
@@ -114,7 +115,7 @@ export const useGlobalVideoProgress = () => {
               });
 
               console.log(
-                `✅ Job ${job.jobId} completed - showing success toast`
+                `✅ Job ${job.jobId} completed - showing success toast from global polling`
               );
             } else if (status === "failed") {
               toast({
@@ -123,7 +124,9 @@ export const useGlobalVideoProgress = () => {
                 variant: "destructive",
               });
 
-              console.log(`❌ Job ${job.jobId} failed - showing failure toast`);
+              console.log(
+                `❌ Job ${job.jobId} failed - showing failure toast from global polling`
+              );
             }
 
             // Mark this job as having shown a toast
@@ -276,6 +279,12 @@ export const useGlobalVideoProgress = () => {
             progressLower.includes("processing audio generation")
           ) {
             stepProgress = 20; // Step 1/11
+          } else if (
+            progressLower.includes("✅ audio generated for") ||
+            progressLower.includes("audio generated for") ||
+            progressLower.includes("audio generated successfully")
+          ) {
+            stepProgress = 25; // Step 1.5/11 - Audio generation completed, moving to video
           } else if (
             progressLower.includes("processing video") ||
             progressLower.includes("concatenating")
