@@ -242,7 +242,7 @@ export const VideoGenerationStatus = ({
                     </p>
                   </div>
                 </div>
-                <div className="text-right text-sm text-gray-400">
+                <div className="hidden md:block text-right text-sm text-gray-400">
                   <p>
                     Started: {new Date(jobStatus.createdAt).toLocaleString()}
                   </p>

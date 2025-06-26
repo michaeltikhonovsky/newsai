@@ -259,7 +259,7 @@ export default function ProjectsPage() {
               </div>
               <Button
                 onClick={() => router.push("/project/config")}
-                className="btn-primary"
+                className="btn-primary hidden md:flex"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 New Project
