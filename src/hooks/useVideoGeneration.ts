@@ -273,24 +273,6 @@ export const useVideoGeneration = (
         } else if (status.status === "completed") {
           console.log("🎉 Video generation completed! Status:", status);
 
-          // Check if we've already shown a completion toast for this job
-          const shownCompletions = JSON.parse(
-            sessionStorage.getItem("shownCompletions") || "[]"
-          );
-          if (!shownCompletions.includes(jobId)) {
-            toast({
-              title: "Video Generated Successfully!",
-              description: "Your news video is ready to download.",
-            });
-
-            // Mark this job as having shown a completion toast
-            shownCompletions.push(jobId);
-            sessionStorage.setItem(
-              "shownCompletions",
-              JSON.stringify(shownCompletions)
-            );
-          }
-
           setIsGenerating(false);
 
           // Remove from global progress tracker
@@ -305,11 +287,6 @@ export const useVideoGeneration = (
               (job: any) => job.jobId !== jobId
             );
             localStorage.setItem("pendingJobs", JSON.stringify(updatedJobs));
-
-            // Clean up sessionStorage if no more pending jobs
-            if (updatedJobs.length === 0) {
-              sessionStorage.removeItem("shownCompletions");
-            }
           } catch (error) {
             console.error(
               "Failed to remove completed job from localStorage:",
