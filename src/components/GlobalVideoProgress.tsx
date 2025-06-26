@@ -33,9 +33,11 @@ export const GlobalVideoProgress = () => {
 
   if (!isVisible) return null;
 
-  const navigateToProject = () => {
-    // If there are ongoing generations, navigate to the status for the first one
-    if (ongoingGenerations.length > 0) {
+  const navigateToProject = (jobId?: string) => {
+    // if jobid provided go to that project
+    if (jobId) {
+      router.push(`/project/script?jobId=${jobId}&showStatus=true`);
+    } else if (ongoingGenerations.length > 0) {
       const firstGeneration = ongoingGenerations[0];
       router.push(
         `/project/script?jobId=${firstGeneration.jobId}&showStatus=true`
@@ -207,7 +209,7 @@ export const GlobalVideoProgress = () => {
                           <div
                             className="group flex items-center gap-2 cursor-pointer transition-colors"
                             onClick={() => {
-                              navigateToProject();
+                              navigateToProject(generation.jobId);
                               handleQueueButtonClick();
                             }}
                           >
