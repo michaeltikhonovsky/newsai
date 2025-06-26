@@ -20,7 +20,9 @@ export const usePendingJobsCheck = () => {
 
         if (pendingJobs.length === 0) return;
 
-        console.log(`🔍 Checking ${pendingJobs.length} pending jobs...`);
+        console.log(
+          `🔍 Checking ${pendingJobs.length} pending jobs on startup...`
+        );
 
         const stillPendingJobs: PendingJob[] = [];
 
@@ -40,7 +42,7 @@ export const usePendingJobsCheck = () => {
                 if (!shownCompletions.includes(job.jobId)) {
                   toast({
                     title: "Video Generation Complete! 🎉",
-                    description: `"${job.title}" has finished generating. Check your Projects page to view it.`,
+                    description: `"${job.title}" has finished generating while you were away. Check your Projects page to view it.`,
                   });
 
                   // Mark this job as having shown a completion toast
@@ -55,30 +57,46 @@ export const usePendingJobsCheck = () => {
                   `✅ Job ${job.jobId} completed while user was away`
                 );
               } else if (status.status === "failed") {
-                // Job failed - show notification
-                toast({
-                  title: "Video Generation Failed",
-                  description: `"${job.title}" failed to generate. You may retry from the script page.`,
-                  variant: "destructive",
-                });
+                // Job failed - show notification only if not already shown
+                const shownCompletions = JSON.parse(
+                  sessionStorage.getItem("shownCompletions") || "[]"
+                );
+                if (!shownCompletions.includes(job.jobId)) {
+                  toast({
+                    title: "Video Generation Failed",
+                    description: `"${job.title}" failed to generate while you were away. You may retry from the script page.`,
+                    variant: "destructive",
+                  });
+
+                  // Mark this job as having shown a failure toast
+                  shownCompletions.push(job.jobId);
+                  sessionStorage.setItem(
+                    "shownCompletions",
+                    JSON.stringify(shownCompletions)
+                  );
+                }
 
                 console.log(`❌ Job ${job.jobId} failed while user was away`);
               } else {
-                // Job still processing - add to queue and keep in localStorage
+                // Job still processing - add to global tracker and keep in localStorage
                 addGeneration(job.jobId, job.title);
                 stillPendingJobs.push(job);
 
                 console.log(
-                  `⏳ Job ${job.jobId} still processing - added to queue`
+                  `⏳ Job ${job.jobId} still processing - added to global tracker`
                 );
               }
             } else {
-              // Can't get status - assume still pending
+              // Can't get status - assume still pending and add to tracker
+              addGeneration(job.jobId, job.title);
               stillPendingJobs.push(job);
-              console.warn(`⚠️ Could not get status for job ${job.jobId}`);
+              console.warn(
+                `⚠️ Could not get status for job ${job.jobId} - assuming still pending`
+              );
             }
           } catch (error) {
-            // Error checking job - assume still pending
+            // Error checking job - assume still pending and add to tracker
+            addGeneration(job.jobId, job.title);
             stillPendingJobs.push(job);
             console.error(`❌ Error checking job ${job.jobId}:`, error);
           }
@@ -96,7 +114,9 @@ export const usePendingJobsCheck = () => {
         }
 
         if (stillPendingJobs.length > 0) {
-          console.log(`📋 ${stillPendingJobs.length} jobs still pending`);
+          console.log(
+            `📋 ${stillPendingJobs.length} jobs still pending - global polling will take over`
+          );
         }
       } catch (error) {
         console.error("❌ Error checking pending jobs:", error);

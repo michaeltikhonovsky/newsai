@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { toast } from "@/hooks/use-toast";
 
 interface JobStatus {
   jobId: string;
@@ -24,7 +25,6 @@ export const useGlobalVideoProgress = () => {
   const [ongoingGenerations, setOngoingGenerations] = useState<
     OngoingGeneration[]
   >([]);
-  const [isVisible, setIsVisible] = useState(false);
   const pollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isPollingRef = useRef(false);
 
@@ -83,7 +83,59 @@ export const useGlobalVideoProgress = () => {
 
         const updatedGenerations = await Promise.all(statusPromises);
 
-        // Remove completed or failed generations
+        // Check for newly completed/failed jobs and show toasts
+        const completedJobs = updatedGenerations.filter((gen) => {
+          const status = gen.lastStatus?.status;
+          const previousStatus = generations.find((g) => g.jobId === gen.jobId)
+            ?.lastStatus?.status;
+
+          // Only show toast if status just changed to completed/failed
+          return (
+            (status === "completed" || status === "failed") &&
+            previousStatus !== status &&
+            previousStatus !== undefined
+          );
+        });
+
+        // Show success/failure toasts for newly completed jobs
+        completedJobs.forEach((job) => {
+          const status = job.lastStatus?.status;
+
+          // Check if we've already shown a toast for this job
+          const shownCompletions = JSON.parse(
+            sessionStorage.getItem("shownCompletions") || "[]"
+          );
+
+          if (!shownCompletions.includes(job.jobId)) {
+            if (status === "completed") {
+              toast({
+                title: "Video Generation Complete! 🎉",
+                description: `"${job.title}" has finished generating. Check your Projects page to view it.`,
+              });
+
+              console.log(
+                `✅ Job ${job.jobId} completed - showing success toast`
+              );
+            } else if (status === "failed") {
+              toast({
+                title: "Video Generation Failed",
+                description: `"${job.title}" failed to generate. You may retry from the script page.`,
+                variant: "destructive",
+              });
+
+              console.log(`❌ Job ${job.jobId} failed - showing failure toast`);
+            }
+
+            // Mark this job as having shown a toast
+            shownCompletions.push(job.jobId);
+            sessionStorage.setItem(
+              "shownCompletions",
+              JSON.stringify(shownCompletions)
+            );
+          }
+        });
+
+        // Remove completed or failed generations from ongoing tracking
         const stillActive = updatedGenerations.filter((gen) => {
           const status = gen.lastStatus?.status;
           return status !== "completed" && status !== "failed";
@@ -91,6 +143,11 @@ export const useGlobalVideoProgress = () => {
 
         setOngoingGenerations(stillActive);
         saveToStorage(stillActive);
+
+        // Clean up sessionStorage if no more ongoing jobs
+        if (stillActive.length === 0) {
+          sessionStorage.removeItem("shownCompletions");
+        }
 
         // Continue polling if there are active generations
         if (stillActive.length > 0) {
@@ -131,9 +188,6 @@ export const useGlobalVideoProgress = () => {
         saveToStorage(updated);
         return updated;
       });
-
-      // Force visibility immediately after state update
-      setTimeout(() => setIsVisible(true), 0);
     },
     [saveToStorage]
   );
@@ -191,11 +245,6 @@ export const useGlobalVideoProgress = () => {
       }
     };
   }, [loadFromStorage, pollAllStatuses]);
-
-  // Update visibility based on active generations
-  useEffect(() => {
-    setIsVisible(ongoingGenerations.length > 0);
-  }, [ongoingGenerations]);
 
   // Get progress percentage for display
   const getProgress = useCallback((generation: OngoingGeneration): number => {
@@ -303,7 +352,6 @@ export const useGlobalVideoProgress = () => {
 
   return {
     ongoingGenerations,
-    isVisible,
     addGeneration,
     removeGeneration,
     updateGeneration,

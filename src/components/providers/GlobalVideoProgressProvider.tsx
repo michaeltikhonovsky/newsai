@@ -20,7 +20,6 @@ interface OngoingGeneration {
 
 interface GlobalVideoProgressContextType {
   ongoingGenerations: OngoingGeneration[];
-  isVisible: boolean;
   addGeneration: (jobId: string, title: string) => void;
   removeGeneration: (jobId: string) => void;
   updateGeneration: (
@@ -62,7 +61,6 @@ export const GlobalVideoProgressProvider = ({
 }: GlobalVideoProgressProviderProps) => {
   const {
     ongoingGenerations,
-    isVisible,
     addGeneration,
     removeGeneration,
     updateGeneration,
@@ -72,7 +70,6 @@ export const GlobalVideoProgressProvider = ({
 
   const value = {
     ongoingGenerations,
-    isVisible,
     addGeneration,
     removeGeneration,
     updateGeneration,
