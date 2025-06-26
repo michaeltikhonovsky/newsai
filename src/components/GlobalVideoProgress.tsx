@@ -112,9 +112,9 @@ export const GlobalVideoProgress = () => {
                   animate={{ opacity: 1, x: 0, scale: 1 }}
                   exit={{ opacity: 0, x: 20, scale: 0.9 }}
                   transition={{ duration: 0.15 }}
-                  className="absolute bottom-0 right-16 w-80 bg-black border border-gray-600 rounded-lg shadow-xl"
+                  className="absolute bottom-16 sm:bottom-0 right-8 sm:right-16 w-72 sm:w-80 md:w-96 bg-black border border-gray-600 rounded-lg shadow-xl max-w-[calc(100vw-2rem)]"
                 >
-                  <div className="p-4 space-y-3">
+                  <div className="p-3 sm:p-4 space-y-3">
                     <div className="flex items-center justify-between">
                       <h3 className="text-sm font-semibold text-gray-200 flex items-center gap-2">
                         <PiQueue className="w-4 h-4" />
