@@ -206,7 +206,10 @@ export const GlobalVideoProgress = () => {
                           </div>
                           <div
                             className="group flex items-center gap-2 cursor-pointer transition-colors"
-                            onClick={navigateToProject}
+                            onClick={() => {
+                              navigateToProject();
+                              handleQueueButtonClick();
+                            }}
                           >
                             <span className="text-xs text-gray-400 group-hover:text-gray-300 transition-colors">
                               Navigate to main status page
