@@ -104,7 +104,7 @@ export const VideoGenerationStatus = ({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="bg-gray-800/50 border border-gray-600 rounded-lg p-6">
+          <div className="bg-gray-800/50 border border-gray-600 rounded-lg">
             <div className="text-center space-y-4">
               <div className="bg-black rounded-lg aspect-video border border-gray-700 overflow-hidden">
                 <video

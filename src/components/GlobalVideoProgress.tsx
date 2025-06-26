@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   RotateCw,
@@ -18,7 +18,18 @@ export const GlobalVideoProgress = () => {
   const { ongoingGenerations, isVisible, getProgress, removeGeneration } =
     useGlobalVideoProgressContext();
   const [isHovered, setIsHovered] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   if (!isVisible) return null;
 
@@ -31,6 +42,12 @@ export const GlobalVideoProgress = () => {
       );
     } else {
       router.push("/project/script");
+    }
+  };
+
+  const handleQueueButtonClick = () => {
+    if (isMobile) {
+      setIsHovered(!isHovered);
     }
   };
 
@@ -84,7 +101,7 @@ export const GlobalVideoProgress = () => {
                 hover:scale-105
                 relative border-1 border-gray-600
               "
-              onClick={navigateToProject}
+              onClick={handleQueueButtonClick}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
