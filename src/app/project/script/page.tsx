@@ -714,12 +714,20 @@ function ProjectScriptPageContent() {
               >
                 <ArrowLeft className="w-5 h-5" />
               </Button>
-              <h1 className="header-text">SCRIPT INPUT</h1>
+              <h1 className="header-text">
+                {isVideoGenerationComplete()
+                  ? "GENERATION COMPLETE"
+                  : generation.isGenerating || generation.jobStatus
+                  ? "VIDEO GENERATION"
+                  : "SCRIPT INPUT"}
+              </h1>
             </div>
-            <p className="text-lg text-gray-400">
-              {">"} Write your news script within the character limits for your{" "}
-              {config.duration}-second clip.
-            </p>
+            {!(generation.isGenerating || generation.jobStatus) && (
+              <p className="text-lg text-gray-400">
+                {">"} Write your news script within the character limits for
+                your {config.duration}-second clip.
+              </p>
+            )}
           </motion.div>
 
           {/* Show centered layout when generating, grid layout otherwise */}

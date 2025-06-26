@@ -154,18 +154,18 @@ export const VideoGenerationStatus = ({
           </div>
 
           <div className="pt-6 border-t border-gray-700">
-            <div className="flex justify-between items-center gap-4">
+            <div className="flex flex-col sm:flex-row justify-between items-stretch gap-3">
               <Button
                 variant="outline"
                 onClick={onBack}
-                className="border-gray-600 text-gray-300 hover:bg-gray-800 flex-1"
+                className="border-gray-600 text-gray-300 hover:bg-gray-800 flex-1 w-full sm:w-auto"
               >
                 <Home className="w-4 h-4 mr-2" />
                 Go to Dashboard
               </Button>
 
               <Button
-                className="btn-primary px-8 py-3 flex-1"
+                className="btn-primary px-6 py-3 flex-1 w-full sm:w-auto"
                 onClick={onDownload}
               >
                 <Download className="w-4 h-4 mr-2" />
