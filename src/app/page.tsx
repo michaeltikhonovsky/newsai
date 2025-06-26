@@ -82,6 +82,13 @@ export default function Home() {
 
   const handleDemoVideoLoadedData = () => {
     setDemoVideoState((prev) => ({ ...prev, isLoading: false }));
+    // Ensure we're at the beginning to show first frame as preview
+    const videoElement = document.getElementById(
+      "demo-video"
+    ) as HTMLVideoElement;
+    if (videoElement && videoElement.currentTime === 0) {
+      videoElement.currentTime = 0.1; // Seek to show first frame
+    }
   };
 
   const handleVideoClick = () => {
@@ -171,10 +178,9 @@ export default function Home() {
                     className="w-full h-full object-cover cursor-pointer"
                     controls={false}
                     muted={demoVideoState.isMuted}
-                    preload="metadata"
+                    preload="auto"
                     playsInline
                     webkit-playsinline="true"
-                    poster="/demos/demo1-poster.jpg"
                     onClick={handleVideoClick}
                     onTouchStart={handleVideoTouch}
                     onLoadStart={handleDemoVideoLoadStart}
@@ -190,6 +196,16 @@ export default function Home() {
                     <source src="/demos/demo1.mp4" type="video/mp4" />
                     Your browser does not support the video tag.
                   </video>
+
+                  {/* Loading overlay */}
+                  {demoVideoState.isLoading && (
+                    <div className="absolute inset-0 bg-gray-900 flex items-center justify-center">
+                      <div className="text-center text-gray-400">
+                        <div className="w-8 h-8 animate-spin border-2 border-white border-t-transparent rounded-full mx-auto mb-2" />
+                        <p className="text-sm">Loading preview...</p>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Video Controls Overlay */}
                   <div
