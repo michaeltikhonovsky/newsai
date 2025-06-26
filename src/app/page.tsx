@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { IoVideocamOutline } from "react-icons/io5";
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AuthDialog } from "@/components/auth/AuthDialog";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { Navbar } from "@/components/Navbar";
@@ -15,13 +15,31 @@ export default function Home() {
   const { isLoaded, isSignedIn } = useUser();
   const router = useRouter();
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [demoVideoState, setDemoVideoState] = useState({
     isPlaying: false,
     isMuted: false,
     isLoading: false,
     error: null as string | null,
     showControls: false,
+    hasLoaded: false,
   });
+
+  // Detect mobile on mount
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(
+        window.innerWidth < 768 ||
+          /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+            navigator.userAgent
+          )
+      );
+    };
+
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   // Animation variants
   const fadeIn = {
@@ -81,14 +99,11 @@ export default function Home() {
   };
 
   const handleDemoVideoLoadedData = () => {
-    setDemoVideoState((prev) => ({ ...prev, isLoading: false }));
-    // Ensure we're at the beginning to show first frame as preview
-    const videoElement = document.getElementById(
-      "demo-video"
-    ) as HTMLVideoElement;
-    if (videoElement && videoElement.currentTime === 0) {
-      videoElement.currentTime = 0.1; // Seek to show first frame
-    }
+    setDemoVideoState((prev) => ({
+      ...prev,
+      isLoading: false,
+      hasLoaded: true,
+    }));
   };
 
   const handleVideoClick = () => {
@@ -206,6 +221,18 @@ export default function Home() {
                       </div>
                     </div>
                   )}
+
+                  {/* Mobile "Tap to play" overlay when video hasn't loaded */}
+                  {isMobile &&
+                    !demoVideoState.hasLoaded &&
+                    !demoVideoState.isLoading && (
+                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                        <div className="text-center text-white">
+                          <IoVideocamOutline className="w-12 h-12 mx-auto mb-3" />
+                          <p className="text-lg font-medium">Tap to play</p>
+                        </div>
+                      </div>
+                    )}
 
                   {/* Video Controls Overlay */}
                   <div

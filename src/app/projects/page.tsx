@@ -23,6 +23,7 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-react";
+import { IoVideocamOutline } from "react-icons/io5";
 
 // Use the database video type instead of SavedProject
 type VideoRecord = {
@@ -54,14 +55,32 @@ const guests: { [key: string]: string } = {
 export default function ProjectsPage() {
   const router = useRouter();
   const [playingVideo, setPlayingVideo] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
   const [videoStates, setVideoStates] = useState<{
     [key: string]: {
       isPlaying: boolean;
       isMuted: boolean;
       isLoading: boolean;
       error: string | null;
+      hasLoaded: boolean;
     };
   }>({});
+
+  // Detect mobile on mount
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(
+        window.innerWidth < 768 ||
+          /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+            navigator.userAgent
+          )
+      );
+    };
+
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   // Fetch videos from database
   const {
@@ -70,11 +89,7 @@ export default function ProjectsPage() {
     refetch,
   } = api.videos.getRecentVideos.useQuery();
 
-  // Note: Videos are now loaded automatically from database via tRPC
-
   const deleteProject = (projectId: string) => {
-    // TODO: Implement delete functionality if needed
-    // For now, videos expire after 24 hours automatically
     toast({
       title: "Feature Coming Soon",
       description: "Videos automatically expire after 24 hours.",
@@ -148,7 +163,8 @@ export default function ProjectsPage() {
           isPlaying: false,
           isMuted: false,
           isLoading: false,
-          error: null,
+          error: null as string | null,
+          hasLoaded: false,
         },
       }));
     }
@@ -217,7 +233,7 @@ export default function ProjectsPage() {
   const handleVideoLoadedData = (projectId: string) => {
     setVideoStates((prev) => ({
       ...prev,
-      [projectId]: { ...prev[projectId], isLoading: false },
+      [projectId]: { ...prev[projectId], isLoading: false, hasLoaded: true },
     }));
   };
 
@@ -304,6 +320,7 @@ export default function ProjectsPage() {
                     isMuted: false,
                     isLoading: false,
                     error: null,
+                    hasLoaded: false,
                   };
 
                   return (
@@ -347,6 +364,9 @@ export default function ProjectsPage() {
                                   className="w-full aspect-video object-cover"
                                   controls={false}
                                   muted={videoState.isMuted}
+                                  preload="metadata"
+                                  playsInline
+                                  webkit-playsinline="true"
                                   onLoadStart={() =>
                                     handleVideoLoadStart(projectIdStr)
                                   }
@@ -381,6 +401,30 @@ export default function ProjectsPage() {
                                   />
                                   Your browser does not support the video tag.
                                 </video>
+
+                                {/* Loading overlay */}
+                                {videoState.isLoading && (
+                                  <div className="absolute inset-0 bg-gray-900 flex items-center justify-center">
+                                    <div className="text-center text-gray-400">
+                                      <div className="w-6 h-6 animate-spin border-2 border-white border-t-transparent rounded-full mx-auto mb-2" />
+                                      <p className="text-xs">Loading...</p>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Mobile "Tap to play" overlay when video hasn't loaded */}
+                                {isMobile &&
+                                  !videoState.hasLoaded &&
+                                  !videoState.isLoading && (
+                                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                                      <div className="text-center text-white">
+                                        <IoVideocamOutline className="w-8 h-8 mx-auto mb-2" />
+                                        <p className="text-sm font-medium">
+                                          Tap to play
+                                        </p>
+                                      </div>
+                                    </div>
+                                  )}
 
                                 {/* Video Controls Overlay */}
                                 <div className="absolute inset-0 bg-black/30 opacity-0 hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
