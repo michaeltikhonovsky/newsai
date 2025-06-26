@@ -214,7 +214,7 @@ export const GlobalVideoProgress = () => {
                             }}
                           >
                             <span className="text-xs text-gray-400 group-hover:text-gray-300 transition-colors">
-                              Navigate to main status page
+                              Navigate to full status page
                             </span>
                             <ArrowRight className="w-3 h-3 text-gray-400 group-hover:text-gray-300 transition-colors" />
                           </div>
