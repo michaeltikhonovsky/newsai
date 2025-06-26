@@ -7,15 +7,9 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Navbar } from "@/components/Navbar";
+import { hosts, guests } from "@/lib/characters";
+import type { Character } from "@/types/video";
 import { ArrowLeft, Check, Users, User, Clock, Music } from "lucide-react";
-
-// Character definitions
-interface Character {
-  id: string;
-  name: string;
-  initials: string;
-  avatar: string;
-}
 
 interface HostGuestPair {
   id: string;
@@ -36,54 +30,6 @@ interface VideoConfig {
   host2Text: string;
   enableMusic: boolean;
 }
-
-const hosts: Character[] = [
-  {
-    id: "lh",
-    name: "Lester Holt",
-    initials: "LH",
-    avatar: "/avatars/LH-headshot.jpg",
-  },
-  {
-    id: "AC",
-    name: "Anderson Cooper",
-    initials: "AC",
-    avatar: "/avatars/AC-headshot.png",
-  },
-  {
-    id: "TC",
-    name: "Tucker Carlson",
-    initials: "TC",
-    avatar: "/avatars/TC-headshot.webp",
-  },
-  {
-    id: "DM",
-    name: "David Muir",
-    initials: "DM",
-    avatar: "/avatars/DM-headshot.webp",
-  },
-];
-
-const guests: Character[] = [
-  {
-    id: "RE",
-    name: "Richard Engel",
-    initials: "RE",
-    avatar: "/avatars/RE-headshot.webp",
-  },
-  {
-    id: "HW",
-    name: "Holly Williams",
-    initials: "HW",
-    avatar: "/avatars/HW-headshot.webp",
-  },
-  {
-    id: "AM",
-    name: "Andrea Mitchell",
-    initials: "AM",
-    avatar: "/avatars/AM-headshot.webp",
-  },
-];
 
 const hostGuestPairs: HostGuestPair[] = [
   {

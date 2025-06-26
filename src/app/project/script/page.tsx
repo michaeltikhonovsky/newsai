@@ -17,8 +17,8 @@ import type {
   ScriptField,
   ProcessingStep,
   GenerateVideoRequest,
-  Character,
 } from "@/types/video";
+import { hosts, guests, getHostName, getGuestName } from "@/lib/characters";
 import {
   ArrowLeft,
   Settings,
@@ -28,36 +28,6 @@ import {
   Coins,
   Music,
 } from "lucide-react";
-
-const hosts: Character[] = [
-  {
-    id: "lh",
-    name: "Lester Holt",
-    initials: "LH",
-    avatar: "/avatars/LH-headshot.jpg",
-  },
-  {
-    id: "AC",
-    name: "Anderson Cooper",
-    initials: "AC",
-    avatar: "/avatars/AC-headshot.png",
-  },
-];
-
-const guests: Character[] = [
-  {
-    id: "RE",
-    name: "Richard Engel",
-    initials: "RE",
-    avatar: "/avatars/RE-headshot.webp",
-  },
-  {
-    id: "HW",
-    name: "Holly Williams",
-    initials: "HW",
-    avatar: "/avatars/HW-headshot.webp",
-  },
-];
 
 const CHARACTER_LIMITS = {
   30: 550,
@@ -381,16 +351,6 @@ function ProjectScriptPageContent() {
     { duration: config?.duration || 30 },
     { enabled: !!config }
   );
-
-  const getHostName = (hostId: string) => {
-    const host = hosts.find((h) => h.id === hostId);
-    return host ? host.name : hostId;
-  };
-
-  const getGuestName = (guestId: string) => {
-    const guest = guests.find((g) => g.id === guestId);
-    return guest ? guest.name : guestId;
-  };
 
   useEffect(() => {
     // Load config from localStorage
