@@ -193,7 +193,8 @@ export default function Home() {
                     className="w-full h-full object-cover cursor-pointer"
                     controls={false}
                     muted={demoVideoState.isMuted}
-                    preload="auto"
+                    preload="metadata"
+                    poster="/demos/demo1-poster.png"
                     playsInline
                     webkit-playsinline="true"
                     onClick={handleVideoClick}
@@ -221,18 +222,6 @@ export default function Home() {
                       </div>
                     </div>
                   )}
-
-                  {/* Mobile "Tap to play" overlay when video hasn't loaded */}
-                  {isMobile &&
-                    !demoVideoState.hasLoaded &&
-                    !demoVideoState.isLoading && (
-                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                        <div className="text-center text-white">
-                          <IoVideocamOutline className="w-12 h-12 mx-auto mb-3" />
-                          <p className="text-lg font-medium">Tap to play</p>
-                        </div>
-                      </div>
-                    )}
 
                   {/* Video Controls Overlay */}
                   <div
