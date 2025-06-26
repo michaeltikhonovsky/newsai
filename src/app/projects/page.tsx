@@ -18,12 +18,7 @@ import {
   Users,
   Clock,
   Plus,
-  Play,
-  Pause,
-  Volume2,
-  VolumeX,
 } from "lucide-react";
-import { IoVideocamOutline } from "react-icons/io5";
 
 // Use the database video type instead of SavedProject
 type VideoRecord = {
@@ -54,33 +49,13 @@ const guests: { [key: string]: string } = {
 
 export default function ProjectsPage() {
   const router = useRouter();
-  const [playingVideo, setPlayingVideo] = useState<string | null>(null);
-  const [isMobile, setIsMobile] = useState(false);
   const [videoStates, setVideoStates] = useState<{
     [key: string]: {
-      isPlaying: boolean;
-      isMuted: boolean;
       isLoading: boolean;
       error: string | null;
       hasLoaded: boolean;
     };
   }>({});
-
-  // Detect mobile on mount
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(
-        window.innerWidth < 768 ||
-          /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-            navigator.userAgent
-          )
-      );
-    };
-
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
-  }, []);
 
   // Fetch videos from database
   const {
@@ -160,60 +135,12 @@ export default function ProjectsPage() {
       setVideoStates((prev) => ({
         ...prev,
         [projectId]: {
-          isPlaying: false,
-          isMuted: false,
           isLoading: false,
           error: null as string | null,
           hasLoaded: false,
         },
       }));
     }
-  };
-
-  const toggleVideoPlay = (projectId: string) => {
-    const videoElement = document.getElementById(
-      `video-${projectId}`
-    ) as HTMLVideoElement;
-    if (!videoElement) return;
-
-    if (videoElement.paused) {
-      // Pause any other playing videos
-      if (playingVideo && playingVideo !== projectId) {
-        const otherVideo = document.getElementById(
-          `video-${playingVideo}`
-        ) as HTMLVideoElement;
-        if (otherVideo) {
-          otherVideo.pause();
-        }
-      }
-
-      videoElement.play();
-      setPlayingVideo(projectId);
-      setVideoStates((prev) => ({
-        ...prev,
-        [projectId]: { ...prev[projectId], isPlaying: true },
-      }));
-    } else {
-      videoElement.pause();
-      setPlayingVideo(null);
-      setVideoStates((prev) => ({
-        ...prev,
-        [projectId]: { ...prev[projectId], isPlaying: false },
-      }));
-    }
-  };
-
-  const toggleVideoMute = (projectId: string) => {
-    const videoElement = document.getElementById(
-      `video-${projectId}`
-    ) as HTMLVideoElement;
-    if (!videoElement) return;
-
-    videoElement.muted = !videoElement.muted;
-    setVideoStates((prev) => ({
-      ...prev,
-      [projectId]: { ...prev[projectId], isMuted: videoElement.muted },
-    }));
   };
 
   const handleVideoError = (projectId: string, error: string) => {
@@ -316,8 +243,6 @@ export default function ProjectsPage() {
                   const projectIdStr = project.id.toString();
                   initializeVideoState(projectIdStr);
                   const videoState = videoStates[projectIdStr] || {
-                    isPlaying: false,
-                    isMuted: false,
                     isLoading: false,
                     error: null,
                     hasLoaded: false,
@@ -362,9 +287,9 @@ export default function ProjectsPage() {
                                 <video
                                   id={`video-${projectIdStr}`}
                                   className="w-full aspect-video object-cover"
-                                  controls={false}
-                                  muted={videoState.isMuted}
-                                  preload="metadata"
+                                  controls={true}
+                                  muted={false}
+                                  preload="auto"
                                   playsInline
                                   webkit-playsinline="true"
                                   onLoadStart={() =>
@@ -382,16 +307,6 @@ export default function ProjectsPage() {
                                       projectIdStr,
                                       "Failed to load video"
                                     );
-                                  }}
-                                  onEnded={() => {
-                                    setPlayingVideo(null);
-                                    setVideoStates((prev) => ({
-                                      ...prev,
-                                      [projectIdStr]: {
-                                        ...prev[projectIdStr],
-                                        isPlaying: false,
-                                      },
-                                    }));
                                   }}
                                 >
                                   {/* Use direct S3 url*/}
@@ -411,57 +326,6 @@ export default function ProjectsPage() {
                                     </div>
                                   </div>
                                 )}
-
-                                {/* Mobile "Tap to play" overlay when video hasn't loaded */}
-                                {isMobile &&
-                                  !videoState.hasLoaded &&
-                                  !videoState.isLoading && (
-                                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                                      <div className="text-center text-white">
-                                        <IoVideocamOutline className="w-8 h-8 mx-auto mb-2" />
-                                        <p className="text-sm font-medium">
-                                          Tap to play
-                                        </p>
-                                      </div>
-                                    </div>
-                                  )}
-
-                                {/* Video Controls Overlay */}
-                                <div className="absolute inset-0 bg-black/30 opacity-0 hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
-                                  <div className="flex items-center gap-2">
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() =>
-                                        toggleVideoPlay(projectIdStr)
-                                      }
-                                      className="bg-black/60 text-white hover:bg-black/80 p-2"
-                                      disabled={videoState.isLoading}
-                                    >
-                                      {videoState.isLoading ? (
-                                        <div className="w-4 h-4 animate-spin border-2 border-white border-t-transparent rounded-full" />
-                                      ) : videoState.isPlaying ? (
-                                        <Pause className="w-4 h-4" />
-                                      ) : (
-                                        <Play className="w-4 h-4" />
-                                      )}
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() =>
-                                        toggleVideoMute(projectIdStr)
-                                      }
-                                      className="bg-black/60 text-white hover:bg-black/80 p-2"
-                                    >
-                                      {videoState.isMuted ? (
-                                        <VolumeX className="w-4 h-4" />
-                                      ) : (
-                                        <Volume2 className="w-4 h-4" />
-                                      )}
-                                    </Button>
-                                  </div>
-                                </div>
                               </>
                             )}
                           </div>

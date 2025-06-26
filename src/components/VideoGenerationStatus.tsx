@@ -110,7 +110,7 @@ export const VideoGenerationStatus = ({
                 <video
                   controls
                   className="w-full h-full object-cover"
-                  preload="metadata"
+                  preload="auto"
                   onError={(e) => {
                     console.error("Video failed to load:", e);
                     // Try to reload the video source
