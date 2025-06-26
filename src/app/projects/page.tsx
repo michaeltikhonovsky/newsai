@@ -73,13 +73,13 @@ export default function ProjectsPage() {
 
   const downloadVideo = async (project: VideoRecord) => {
     try {
-      // Use direct S3 URL for download without fetch to avoid CORS
-      if (!project.s3Url) {
-        throw new Error("Video URL not available");
+      // use download endpoint
+      if (!project.jobId) {
+        throw new Error("Job ID not available");
       }
 
       const a = document.createElement("a");
-      a.href = project.s3Url;
+      a.href = `/api/download/${project.jobId}`;
       a.download = `${project.title.replace(/[^a-z0-9]/gi, "_")}.mp4`;
       document.body.appendChild(a);
       a.click();

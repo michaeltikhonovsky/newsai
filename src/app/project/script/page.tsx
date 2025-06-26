@@ -473,24 +473,18 @@ function ProjectScriptPageContent() {
     if (!generation.jobStatus?.jobId) return;
 
     try {
-      // Use direct S3 URL if available & fallback to API proxy
-      const downloadUrl =
-        currentVideoS3Url || `/api/video/${generation.jobStatus.jobId}`;
-
-      const response = await fetch(downloadUrl);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      // use download endpoint
       const a = document.createElement("a");
-      a.href = url;
+      a.href = `/api/download/${generation.jobStatus.jobId}`;
       a.download = `news-video-${generation.jobStatus.jobId}.mp4`;
       document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+
+      toast({
+        title: "Download Started",
+        description: "Your video is being downloaded.",
+      });
     } catch (err: any) {
       console.error("Error downloading video:", err);
       toast({
