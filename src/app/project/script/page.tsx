@@ -744,8 +744,9 @@ function ProjectScriptPageContent() {
                   >
                     <p className="text-sm text-gray-400 bg-blue-500/10 border border-blue-400/30 rounded-lg px-4 py-3 mb-3">
                       💡 Generation will continue in the background. Feel free
-                      to leave this page and come back later as the lipsync
-                      process can sometimes take up to 10 minutes.
+                      to leave this page and come back later as the entire audio
+                      generation and lipsync process can sometimes take up to 10
+                      minutes.
                     </p>
                   </motion.div>
                 )}
