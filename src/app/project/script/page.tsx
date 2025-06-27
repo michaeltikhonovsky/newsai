@@ -17,8 +17,10 @@ import type {
   ScriptField,
   ProcessingStep,
   GenerateVideoRequest,
+  JobStatus,
 } from "@/types/video";
 import { hosts, guests, getHostName, getGuestName } from "@/lib/characters";
+import { getJobConfig } from "@/lib/utils";
 import {
   ArrowLeft,
   Settings,
@@ -198,165 +200,20 @@ const getProcessingSteps = (
 
   // For single character mode, adjust step indices
   if (config?.mode === "single") {
-    // Use the same reverse order logic for single mode
-    if (
-      progress.includes("video processing completed successfully") ||
-      progress.includes("processing completed successfully") ||
-      (progress.includes("completed successfully") &&
-        !progress.includes("outro") &&
-        !progress.includes("finalized"))
-    ) {
-      currentStepIndex = 10; // complete
-    } else if (
-      progress.includes("uploading final video to s3") ||
-      (progress.includes("upload progress") && !progress.includes("lipsync")) ||
-      progress.includes("uploading final video to s3 completed")
-    ) {
-      currentStepIndex = 9; // upload_s3
-    } else if (
-      progress.includes("video saved locally") ||
-      progress.includes("saved locally")
-    ) {
-      currentStepIndex = 8; // save_local
-    } else if (
-      progress.includes("adding outro") ||
-      progress.includes("outro added")
-    ) {
-      currentStepIndex = 7; // outro
-    } else if (
-      progress.includes("finalizing video") ||
-      progress.includes("video finalized")
-    ) {
-      currentStepIndex = 6; // finalize
-    } else if (
-      progress.includes("lipsync processing completed, downloading result") ||
-      progress.includes("downloading result") ||
-      progress.includes("download lipsync result")
-    ) {
-      currentStepIndex = 5; // lipsync_download
-    } else if (
-      progress.includes("lipsync processing in progress") ||
-      progress.includes("starting lipsync processing") ||
-      (progress.includes("lipsync") &&
-        progress.includes("processing") &&
-        !progress.includes("completed") &&
-        !progress.includes("downloading"))
-    ) {
-      currentStepIndex = 4; // lipsync
-    } else if (
-      (progress.includes("uploading") && progress.includes("lipsync")) ||
-      progress.includes("uploading video for lipsync") ||
-      progress.includes("uploading audio for lipsync")
-    ) {
-      currentStepIndex = 3; // upload
-    } else if (
-      progress.includes("adding background music") ||
-      progress.includes("background music")
-    ) {
-      currentStepIndex = 2; // music
-    } else if (
-      progress.includes("🎬 processing video footage") ||
-      progress.includes("processing video footage") ||
-      progress.includes("processing video") ||
-      progress.includes("video footage")
-    ) {
-      currentStepIndex = 1; // video
-    } else if (
-      progress.includes("🎙️ generating audio for") ||
-      progress.includes("generating audio for") ||
-      progress.includes("generating audio") ||
-      progress.includes("processing audio generation") ||
-      progress.includes("✅ audio generated for") ||
-      progress.includes("audio generated for")
-    ) {
-      // For single character mode, transition immediately after audio completion
-      if (
-        progress.includes("✅ audio generated for") ||
-        progress.includes("audio generated for")
-      ) {
-        currentStepIndex = 1; // move to video step for smooth transition in single mode
-      } else {
-        currentStepIndex = 0; // audio
-      }
+    if (currentStepIndex === 1 && progress.includes("concatenat")) {
+      // Skip concatenation for single mode
+      currentStepIndex = 2; // Move to music
     }
   }
 
-  // Check if generation is fully completed
-  const isFullyCompleted =
-    progress.includes("video processing completed successfully") ||
-    progress.includes("completed successfully") ||
-    progress.toLowerCase().includes("video generation completed");
-
-  return steps.map((step, index) => {
-    let completed = false;
-    let current = false;
-
-    if (isFullyCompleted) {
-      // If video processing is fully completed, mark all steps as completed
-      completed = true;
-      current = false;
-    } else if (currentStepIndex >= 0) {
-      // Ensure we never go backward - use the higher of current or previous step
-      const actualStepIndex =
-        previousStepIndex !== undefined
-          ? Math.max(currentStepIndex, previousStepIndex)
-          : currentStepIndex;
-
-      // If we found a current step, mark all previous steps as completed
-      completed = index < actualStepIndex;
-      current = index === actualStepIndex;
-    } else {
-      // Fallback to text-based detection for edge cases
-      current =
-        progress.includes(step.label.toLowerCase()) ||
-        (step.key === "audio" &&
-          (progress.includes("🎙️ generating audio") ||
-            progress.includes("generating audio") ||
-            progress.includes("processing audio generation") ||
-            (progress.includes("generating audio for") &&
-              (progress.includes("introduction") ||
-                progress.includes("main segment") ||
-                progress.includes("conclusion") ||
-                progress.includes("host") ||
-                progress.includes("guest"))))) ||
-        (step.key === "video" &&
-          (progress.includes("🎬 processing video footage") ||
-            progress.includes("processing video footage") ||
-            progress.includes("processing video") ||
-            progress.includes("video footage"))) ||
-        (step.key === "lipsync" &&
-          (progress.includes("lipsync processing in progress") ||
-            progress.includes("starting lipsync processing") ||
-            (progress.includes("lipsync") &&
-              progress.includes("processing") &&
-              !progress.includes("completed") &&
-              !progress.includes("downloading")))) ||
-        (step.key === "lipsync_download" &&
-          (progress.includes("lipsync processing completed") ||
-            progress.includes("downloading result") ||
-            progress.includes("download lipsync result"))) ||
-        (step.key === "finalize" &&
-          (progress.includes("finalizing video") ||
-            progress.includes("video finalized"))) ||
-        (step.key === "outro" &&
-          (progress.includes("adding outro") ||
-            progress.includes("outro added"))) ||
-        (step.key === "save_local" &&
-          (progress.includes("video saved locally") ||
-            progress.includes("saved locally"))) ||
-        (step.key === "upload_s3" &&
-          (progress.includes("uploading final video to s3") ||
-            progress.includes("upload progress") ||
-            progress.includes("uploading final video to s3 completed") ||
-            (progress.includes("uploading") && progress.includes("s3")))) ||
-        (step.key === "complete" &&
-          (progress.includes("video processing completed successfully") ||
-            progress.includes("processing completed successfully") ||
-            progress.includes("completed successfully")));
-    }
-
+  // Calculate which steps are completed
+  const updatedSteps = steps.map((step, index) => {
+    const completed = index < currentStepIndex;
+    const current = index === currentStepIndex;
     return { ...step, completed, current };
   });
+
+  return updatedSteps;
 };
 
 function ProjectScriptPageContent() {
@@ -370,6 +227,7 @@ function ProjectScriptPageContent() {
     host2Text: "",
   });
   const [lastStepIndex, setLastStepIndex] = useState<number>(-1);
+  const [urlJobStatus, setUrlJobStatus] = useState<JobStatus | null>(null);
 
   // Use the video generation hook
   const generation = useVideoGeneration(config, (jobId: string) => {
@@ -377,18 +235,38 @@ function ProjectScriptPageContent() {
     saveCompletedProject(jobId);
   });
 
+  // Get job-specific config if there's a jobId in the URL
+  const jobId = searchParams.get("jobId");
+  const jobSpecificConfig = jobId ? getJobConfig(jobId) : null;
+  const displayConfig = jobSpecificConfig || config;
+
+  // Determine which job status and ID to use
+  const isUrlJob = jobId && jobId !== generation.currentJobId;
+  const effectiveJobStatus = isUrlJob ? urlJobStatus : generation.jobStatus;
+  const effectiveJobId = jobId || generation.currentJobId;
+
+  // Debug logging
+  console.log("Status Debug:", {
+    jobIdFromUrl: jobId,
+    urlJobStatus: urlJobStatus?.jobId,
+    generationJobId: generation.currentJobId,
+    effectiveJobId,
+    effectiveJobStatus: effectiveJobStatus?.jobId,
+  });
+
   const { data: completedVideos } = api.videos.getRecentVideos.useQuery(
     undefined,
     {
       enabled:
-        generation.jobStatus?.status === "completed" &&
-        !!generation.currentJobId,
+        (generation.jobStatus?.status === "completed" &&
+          !!generation.currentJobId) ||
+        (effectiveJobStatus?.status === "completed" && !!effectiveJobId),
       refetchInterval: false,
     }
   );
 
   const currentVideoS3Url = completedVideos?.find(
-    (video) => video.jobId === generation.currentJobId
+    (video) => video.jobId === effectiveJobId
   )?.s3Url;
 
   // Credit checks
@@ -396,6 +274,50 @@ function ProjectScriptPageContent() {
     { duration: config?.duration || 30 },
     { enabled: !!config }
   );
+
+  // Fetch job-specific status when there's a jobId in the URL
+  useEffect(() => {
+    if (jobId && jobId !== generation.currentJobId) {
+      // Fetch status for URL job if it's different from the currently tracked job
+      const fetchJobStatus = async () => {
+        try {
+          const response = await fetch(`/api/status/${jobId}`);
+          if (response.ok) {
+            const status = await response.json();
+            setUrlJobStatus(status);
+          }
+        } catch (error) {
+          console.error("Failed to fetch job status:", error);
+        }
+      };
+
+      fetchJobStatus();
+
+      // Set up polling for URL-based job if it's still in progress
+      const pollUrlJob = async () => {
+        try {
+          const response = await fetch(`/api/status/${jobId}`);
+          if (response.ok) {
+            const status = await response.json();
+            setUrlJobStatus(status);
+
+            // Continue polling if job is still in progress
+            if (
+              status.status === "pending" ||
+              status.status === "queued" ||
+              status.status === "processing"
+            ) {
+              setTimeout(pollUrlJob, 2000);
+            }
+          }
+        } catch (error) {
+          console.error("Failed to poll job status:", error);
+        }
+      };
+
+      pollUrlJob();
+    }
+  }, [jobId, generation.currentJobId]);
 
   useEffect(() => {
     // Load config from localStorage
@@ -470,13 +392,13 @@ function ProjectScriptPageContent() {
 
   // Download video
   const downloadVideo = async () => {
-    if (!generation.jobStatus?.jobId) return;
+    if (!effectiveJobId) return;
 
     try {
       // use download endpoint
       const a = document.createElement("a");
-      a.href = `/api/download/${generation.jobStatus.jobId}`;
-      a.download = `news-video-${generation.jobStatus.jobId}.mp4`;
+      a.href = `/api/download/${effectiveJobId}`;
+      a.download = `news-video-${effectiveJobId}.mp4`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -560,57 +482,37 @@ function ProjectScriptPageContent() {
   };
 
   const isVideoGenerationComplete = (): boolean => {
-    const result = !!(
-      generation.jobStatus?.status === "completed" &&
-      generation.jobStatus?.progress &&
-      (generation.jobStatus.progress
-        .toLowerCase()
-        .includes("video processing completed successfully") ||
-        generation.jobStatus.progress
-          .toLowerCase()
-          .includes("completed successfully") ||
-        generation.jobStatus.progress
-          .toLowerCase()
-          .includes("video generation completed") ||
-        generation.jobStatus.progress
-          .toLowerCase()
-          .includes("generation completed"))
-    );
-
-    console.log("isVideoGenerationComplete check:", {
-      status: generation.jobStatus?.status,
-      progress: generation.jobStatus?.progress,
-      result: result,
-    });
-
-    return result;
+    return effectiveJobStatus?.status === "completed" && !!currentVideoS3Url;
   };
 
-  // Wrapper for getProcessingSteps to handle type compatibility
+  // Track progress steps for visual indicators
+  useEffect(() => {
+    if (effectiveJobStatus?.progress && displayConfig) {
+      const currentSteps = getProcessingSteps(
+        effectiveJobStatus.progress,
+        displayConfig
+      );
+      const currentStepIndex = currentSteps.findIndex((step) => step.current);
+
+      if (currentStepIndex !== -1 && currentStepIndex !== lastStepIndex) {
+        setLastStepIndex(currentStepIndex);
+        console.log(
+          `Step ${currentStepIndex + 1}: ${
+            currentSteps[currentStepIndex]?.label
+          }`
+        );
+      }
+    }
+  }, [effectiveJobStatus?.progress, displayConfig, lastStepIndex]);
+
   const getProcessingStepsWrapper = (
     currentProgress?: string | undefined,
     config?: any
   ): ProcessingStep[] => {
-    return getProcessingSteps(currentProgress, config, lastStepIndex);
+    // Use job-specific config if available, otherwise fall back to passed config
+    const configToUse = displayConfig || config;
+    return getProcessingSteps(currentProgress, configToUse);
   };
-
-  // Update the last step index when progress changes
-  useEffect(() => {
-    if (generation.jobStatus?.progress && config) {
-      const steps = getProcessingSteps(
-        generation.jobStatus.progress,
-        config,
-        lastStepIndex
-      );
-      const currentStep = steps.find((step) => step.current);
-      if (currentStep) {
-        const currentIndex = steps.indexOf(currentStep);
-        if (currentIndex > lastStepIndex) {
-          setLastStepIndex(currentIndex);
-        }
-      }
-    }
-  }, [generation.jobStatus?.progress, config, lastStepIndex]);
 
   // Check if we're coming from the floating icon with a jobId to restore generation state
   useEffect(() => {
@@ -711,12 +613,18 @@ function ProjectScriptPageContent() {
               <h1 className="header-text">
                 {isVideoGenerationComplete()
                   ? "GENERATION COMPLETE"
-                  : generation.isGenerating || generation.jobStatus
+                  : generation.isGenerating ||
+                    generation.jobStatus ||
+                    effectiveJobStatus
                   ? "VIDEO GENERATION"
                   : "SCRIPT INPUT"}
               </h1>
             </div>
-            {!(generation.isGenerating || generation.jobStatus) && (
+            {!(
+              generation.isGenerating ||
+              generation.jobStatus ||
+              effectiveJobStatus
+            ) && (
               <p className="text-lg text-gray-400">
                 {">"} Write your news script within the character limits for
                 your {config.duration}-second clip.
@@ -725,7 +633,9 @@ function ProjectScriptPageContent() {
           </motion.div>
 
           {/* Show centered layout when generating, grid layout otherwise */}
-          {generation.isGenerating || generation.jobStatus ? (
+          {generation.isGenerating ||
+          generation.jobStatus ||
+          effectiveJobStatus ? (
             /* Centered layout for video generation */
             <div className="max-w-4xl mx-auto">
               <motion.div
@@ -737,7 +647,10 @@ function ProjectScriptPageContent() {
                 {(generation.isGenerating ||
                   generation.jobStatus?.status === "pending" ||
                   generation.jobStatus?.status === "queued" ||
-                  generation.jobStatus?.status === "processing") && (
+                  generation.jobStatus?.status === "processing" ||
+                  effectiveJobStatus?.status === "pending" ||
+                  effectiveJobStatus?.status === "queued" ||
+                  effectiveJobStatus?.status === "processing") && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -753,11 +666,11 @@ function ProjectScriptPageContent() {
                   </motion.div>
                 )}
                 <VideoGenerationStatus
-                  jobStatus={generation.jobStatus}
-                  config={config}
+                  jobStatus={effectiveJobStatus}
+                  config={displayConfig}
                   hasRefunded={generation.hasRefunded}
                   consecutiveErrors={generation.consecutiveErrors}
-                  currentJobId={generation.currentJobId}
+                  currentJobId={effectiveJobId}
                   isGenerating={generation.isGenerating}
                   s3Url={currentVideoS3Url}
                   onBack={() => router.push("/dashboard")}

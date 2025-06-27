@@ -8,6 +8,45 @@ interface PendingJob {
   startedAt: string;
 }
 
+interface VideoConfig {
+  mode: "single" | "host_guest_host";
+  duration: 30 | 60;
+  selectedHost: string;
+  selectedGuest?: string;
+  singleCharacterText?: string;
+  host1Text?: string;
+  guest1Text?: string;
+  host2Text?: string;
+  enableMusic: boolean;
+}
+
+// Helper functions for job config localStorage management
+const getJobConfig = (jobId: string): VideoConfig | null => {
+  try {
+    const stored = localStorage.getItem(`activeVideoJobs_${jobId}`);
+    return stored ? JSON.parse(stored) : null;
+  } catch (error) {
+    console.error("Failed to get job config from localStorage:", error);
+    return null;
+  }
+};
+
+const removeJobConfig = (jobId: string) => {
+  try {
+    localStorage.removeItem(`activeVideoJobs_${jobId}`);
+  } catch (error) {
+    console.error("Failed to remove job config from localStorage:", error);
+  }
+};
+
+// Helper function to generate title from job config
+const generateTitleFromConfig = (config: VideoConfig | null): string => {
+  if (!config) return "Video";
+
+  const mode = config.mode === "single" ? "Single Host" : "Host & Guest";
+  return `${mode} Video (${config.duration}s)`;
+};
+
 export const usePendingJobsCheck = () => {
   const { addGeneration } = useGlobalVideoProgressContext();
 
@@ -35,48 +74,19 @@ export const usePendingJobsCheck = () => {
               const status = await response.json();
 
               if (status.status === "completed") {
-                // Job completed - show notification only if not already shown
-                const shownCompletions = JSON.parse(
-                  sessionStorage.getItem("shownCompletions") || "[]"
-                );
-                if (!shownCompletions.includes(job.jobId)) {
-                  toast({
-                    title: "Video Generation Complete! 🎉",
-                    description: `"${job.title}" has finished generating while you were away. Check your Projects page to view it.`,
-                  });
-
-                  // Mark this job as having shown a completion toast
-                  shownCompletions.push(job.jobId);
-                  sessionStorage.setItem(
-                    "shownCompletions",
-                    JSON.stringify(shownCompletions)
-                  );
-                }
-
+                // job completed
                 console.log(
                   `✅ Job ${job.jobId} completed while user was away`
                 );
+
+                // Clean up job config since it's completed
+                removeJobConfig(job.jobId);
               } else if (status.status === "failed") {
-                // Job failed - show notification only if not already shown
-                const shownCompletions = JSON.parse(
-                  sessionStorage.getItem("shownCompletions") || "[]"
-                );
-                if (!shownCompletions.includes(job.jobId)) {
-                  toast({
-                    title: "Video Generation Failed",
-                    description: `"${job.title}" failed to generate while you were away. You may retry from the script page.`,
-                    variant: "destructive",
-                  });
-
-                  // Mark this job as having shown a failure toast
-                  shownCompletions.push(job.jobId);
-                  sessionStorage.setItem(
-                    "shownCompletions",
-                    JSON.stringify(shownCompletions)
-                  );
-                }
-
+                // job failed
                 console.log(`❌ Job ${job.jobId} failed while user was away`);
+
+                // Clean up job config since it failed
+                removeJobConfig(job.jobId);
               } else {
                 // Job still processing - add to global tracker and keep in localStorage
                 addGeneration(job.jobId, job.title);

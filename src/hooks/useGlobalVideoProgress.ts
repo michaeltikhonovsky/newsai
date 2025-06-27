@@ -18,7 +18,46 @@ interface OngoingGeneration {
   lastStatus?: JobStatus;
 }
 
-const STORAGE_KEY = "ongoing_generations";
+interface VideoConfig {
+  mode: "single" | "host_guest_host";
+  duration: 30 | 60;
+  selectedHost: string;
+  selectedGuest?: string;
+  singleCharacterText?: string;
+  host1Text?: string;
+  guest1Text?: string;
+  host2Text?: string;
+  enableMusic: boolean;
+}
+
+// Helper functions for job config localStorage management
+const getJobConfig = (jobId: string): VideoConfig | null => {
+  try {
+    const stored = localStorage.getItem(`activeVideoJobs_${jobId}`);
+    return stored ? JSON.parse(stored) : null;
+  } catch (error) {
+    console.error("Failed to get job config from localStorage:", error);
+    return null;
+  }
+};
+
+const removeJobConfig = (jobId: string) => {
+  try {
+    localStorage.removeItem(`activeVideoJobs_${jobId}`);
+  } catch (error) {
+    console.error("Failed to remove job config from localStorage:", error);
+  }
+};
+
+// Helper function to generate title from job config
+const generateTitleFromConfig = (config: VideoConfig | null): string => {
+  if (!config) return "Video";
+
+  const mode = config.mode === "single" ? "Single Host" : "Host & Guest";
+  return `${mode} Video (${config.duration}s)`;
+};
+
+const STORAGE_KEY = "ongoingGenerations";
 const POLL_INTERVAL = 3000; // 3 seconds
 
 export const useGlobalVideoProgress = () => {
@@ -29,23 +68,14 @@ export const useGlobalVideoProgress = () => {
   const isPollingRef = useRef(false);
 
   // Load ongoing generations from localStorage
-  const loadFromStorage = useCallback(() => {
+  const loadFromStorage = useCallback((): OngoingGeneration[] => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const generations = JSON.parse(stored) as OngoingGeneration[];
-        // Filter out generations older than 2 hours (cleanup)
-        const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
-        const active = generations.filter(
-          (gen) => new Date(gen.startedAt) > twoHoursAgo
-        );
-        setOngoingGenerations(active);
-        return active;
-      }
+      return stored ? JSON.parse(stored) : [];
     } catch (error) {
-      console.error("Error loading ongoing generations:", error);
+      console.error("Failed to load ongoing generations from storage:", error);
+      return [];
     }
-    return [];
   }, []);
 
   // Save to localStorage
@@ -53,7 +83,7 @@ export const useGlobalVideoProgress = () => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(generations));
     } catch (error) {
-      console.error("Error saving ongoing generations:", error);
+      console.error("Failed to save ongoing generations to storage:", error);
     }
   }, []);
 
@@ -65,76 +95,88 @@ export const useGlobalVideoProgress = () => {
       isPollingRef.current = true;
 
       try {
-        const statusPromises = generations.map(async (gen) => {
-          try {
-            const response = await fetch(`/api/status/${gen.jobId}`, {
-              headers: { "Cache-Control": "no-cache" },
-            });
-            if (response.ok) {
-              const status: JobStatus = await response.json();
-              return { ...gen, lastStatus: status };
+        const updatedGenerations = await Promise.all(
+          generations.map(async (gen) => {
+            try {
+              const response = await fetch(`/api/status/${gen.jobId}`, {
+                headers: {
+                  "Cache-Control": "no-cache",
+                },
+              });
+
+              if (response.ok) {
+                const status: JobStatus = await response.json();
+                return { ...gen, lastStatus: status };
+              } else {
+                console.warn(
+                  `Failed to fetch status for job ${gen.jobId}: ${response.status}`
+                );
+                return gen; // Keep existing status
+              }
+            } catch (error) {
+              console.error(
+                `Error fetching status for job ${gen.jobId}:`,
+                error
+              );
+              return gen; // Keep existing status
             }
-            return gen;
-          } catch (error) {
-            console.error(`Error polling status for ${gen.jobId}:`, error);
-            return gen;
-          }
-        });
+          })
+        );
 
-        const updatedGenerations = await Promise.all(statusPromises);
+        setOngoingGenerations(updatedGenerations);
 
-        // Check for newly completed/failed jobs and show toasts
-        // Only show toasts for jobs that just changed status
-        const completedJobs = updatedGenerations.filter((gen) => {
-          const currentStatus = gen.lastStatus?.status;
-          const previousGen = generations.find((g) => g.jobId === gen.jobId);
-          const previousStatus = previousGen?.lastStatus?.status;
-
-          // Show toast if status just changed to completed/failed
-          return (
-            (currentStatus === "completed" || currentStatus === "failed") &&
-            previousStatus !== currentStatus &&
-            previousStatus
-          ); // Only if we had a previous status (not first poll)
-        });
-
-        // Show success/failure toasts for newly completed jobs
-        completedJobs.forEach((job) => {
+        // Check for completed or failed jobs and show toasts
+        updatedGenerations.forEach(async (job) => {
           const status = job.lastStatus?.status;
+          if (status === "completed" || status === "failed") {
+            // Check if we've already shown a toast for this job
+            const shownCompletions = JSON.parse(
+              sessionStorage.getItem("shownCompletions") || "[]"
+            );
 
-          // Check if we've already shown a toast for this job
-          const shownCompletions = JSON.parse(
-            sessionStorage.getItem("shownCompletions") || "[]"
-          );
+            if (!shownCompletions.includes(job.jobId)) {
+              if (status === "completed") {
+                // Get config from localStorage for this specific job
+                const jobConfig = getJobConfig(job.jobId);
+                const title = generateTitleFromConfig(jobConfig);
 
-          if (!shownCompletions.includes(job.jobId)) {
-            if (status === "completed") {
-              toast({
-                title: "Video Generation Complete! 🎉",
-                description: `"${job.title}" has finished generating. Check your Projects page to view it.`,
-              });
+                toast({
+                  title: "Video Generation Complete! 🎉",
+                  description: `"${title}" has finished generating. Check your Projects page to view it.`,
+                });
 
-              console.log(
-                `✅ Job ${job.jobId} completed - showing success toast from global polling`
-              );
-            } else if (status === "failed") {
-              toast({
-                title: "Video Generation Failed",
-                description: `"${job.title}" failed to generate. You may retry from the script page.`,
-                variant: "destructive",
-              });
+                console.log(
+                  `✅ Job ${job.jobId} completed - showing success toast from global polling with job-specific config`
+                );
 
-              console.log(
-                `❌ Job ${job.jobId} failed - showing failure toast from global polling`
+                // Clean up job config since it's completed
+                removeJobConfig(job.jobId);
+              } else if (status === "failed") {
+                // Get config from localStorage for this specific job
+                const jobConfig = getJobConfig(job.jobId);
+                const title = generateTitleFromConfig(jobConfig);
+
+                toast({
+                  title: "Video Generation Failed",
+                  description: `"${title}" failed to generate. You may retry from the script page.`,
+                  variant: "destructive",
+                });
+
+                console.log(
+                  `❌ Job ${job.jobId} failed - showing failure toast from global polling with job-specific config`
+                );
+
+                // Clean up job config since it failed
+                removeJobConfig(job.jobId);
+              }
+
+              // Mark this job as having shown a toast
+              shownCompletions.push(job.jobId);
+              sessionStorage.setItem(
+                "shownCompletions",
+                JSON.stringify(shownCompletions)
               );
             }
-
-            // Mark this job as having shown a toast
-            shownCompletions.push(job.jobId);
-            sessionStorage.setItem(
-              "shownCompletions",
-              JSON.stringify(shownCompletions)
-            );
           }
         });
 
@@ -302,60 +344,72 @@ export const useGlobalVideoProgress = () => {
             progressLower.includes("uploading video for lipsync") ||
             progressLower.includes("uploading for lipsync") ||
             progressLower.includes("upload for lipsync") ||
-            (progressLower.includes("completed") &&
-              progressLower.includes("uploading") &&
-              progressLower.includes("lipsync"))
+            progressLower.includes("uploading video and audio for lipsync")
           ) {
-            stepProgress = 50; // Step 4/11 - Upload phase (including completed uploads)
+            stepProgress = 50; // Step 4/11
           } else if (
-            (progressLower.includes("lipsync processing in progress") ||
-              progressLower.includes("starting lipsync processing")) &&
-            !progressLower.includes("uploading") &&
-            !progressLower.includes("completed")
+            progressLower.includes("lipsync processing") ||
+            progressLower.includes("processing lipsync") ||
+            progressLower.includes("starting lipsync")
           ) {
-            stepProgress = 60; // Step 5/11 - Only actual lipsync processing
+            stepProgress = 60; // Step 5/11
           } else if (
+            progressLower.includes("downloading result") ||
             progressLower.includes("lipsync processing completed") ||
-            progressLower.includes("downloading result")
+            progressLower.includes("downloading lipsync result")
           ) {
             stepProgress = 70; // Step 6/11
           } else if (
-            progressLower.includes("finalizing video") ||
+            progressLower.includes("finalizing") ||
             progressLower.includes("video finalized")
           ) {
-            stepProgress = 80; // Step 7/11
+            stepProgress = 75; // Step 7/11
           } else if (
             progressLower.includes("adding outro") ||
             progressLower.includes("outro added")
           ) {
-            stepProgress = 85; // Step 8/11
+            stepProgress = 80; // Step 8/11
           } else if (
-            progressLower.includes("video saved locally") ||
-            progressLower.includes("saved locally")
+            progressLower.includes("saving locally") ||
+            progressLower.includes("video saved locally")
           ) {
-            stepProgress = 90; // Step 9/11
+            stepProgress = 85; // Step 9/11
           } else if (
-            progressLower.includes("uploading final video to s3") ||
-            progressLower.includes("upload progress")
+            progressLower.includes("uploading to s3") ||
+            progressLower.includes("upload progress") ||
+            progressLower.includes("uploading final video")
           ) {
-            stepProgress = 95; // Step 10/11
-          } else if (
-            progressLower.includes("video processing completed") ||
-            progressLower.includes("processing completed successfully")
-          ) {
-            stepProgress = 100; // Step 11/11
+            stepProgress = 90; // Step 10/11
           }
 
-          return stepProgress;
+          return Math.min(95, stepProgress);
         }
-        return 15; // Default processing progress if no specific step detected
+        return 15; // Base processing progress
       }
       case "completed":
         return 100;
       case "failed":
-        return 100;
+        return 0;
       default:
         return 0;
+    }
+  }, []);
+
+  // Get status color for display
+  const getStatusColor = useCallback((status?: string): string => {
+    switch (status) {
+      case "pending":
+        return "text-yellow-400";
+      case "queued":
+        return "text-yellow-400";
+      case "processing":
+        return "text-blue-400";
+      case "completed":
+        return "text-green-400";
+      case "failed":
+        return "text-red-400";
+      default:
+        return "text-gray-400";
     }
   }, []);
 
@@ -366,5 +420,7 @@ export const useGlobalVideoProgress = () => {
     updateGeneration,
     clearAll,
     getProgress,
+    getStatusColor,
+    pollAllStatuses: () => pollAllStatuses(ongoingGenerations),
   };
 };

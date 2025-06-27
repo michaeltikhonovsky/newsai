@@ -3,28 +3,42 @@ import { api } from "@/trpc/react";
 import { toast } from "@/hooks/use-toast";
 import { useGlobalVideoProgressContext } from "@/components/providers/GlobalVideoProgressProvider";
 import { useUser } from "@clerk/nextjs";
+import type { VideoConfig, JobStatus } from "@/types/video";
 
-interface JobStatus {
-  jobId: string;
-  status: "pending" | "queued" | "processing" | "completed" | "failed";
-  progress?: string;
-  error?: string;
-  queuePosition?: number;
-  createdAt: string;
-  updatedAt: string;
-}
+// Helper functions for job config localStorage management
+const saveJobConfig = (jobId: string, config: VideoConfig) => {
+  try {
+    localStorage.setItem(`activeVideoJobs_${jobId}`, JSON.stringify(config));
+  } catch (error) {
+    console.error("Failed to save job config to localStorage:", error);
+  }
+};
 
-interface VideoConfig {
-  mode: "single" | "host_guest_host";
-  duration: 30 | 60;
-  selectedHost: string;
-  selectedGuest?: string;
-  singleCharacterText?: string;
-  host1Text?: string;
-  guest1Text?: string;
-  host2Text?: string;
-  enableMusic: boolean;
-}
+const getJobConfig = (jobId: string): VideoConfig | null => {
+  try {
+    const stored = localStorage.getItem(`activeVideoJobs_${jobId}`);
+    return stored ? JSON.parse(stored) : null;
+  } catch (error) {
+    console.error("Failed to get job config from localStorage:", error);
+    return null;
+  }
+};
+
+const removeJobConfig = (jobId: string) => {
+  try {
+    localStorage.removeItem(`activeVideoJobs_${jobId}`);
+  } catch (error) {
+    console.error("Failed to remove job config from localStorage:", error);
+  }
+};
+
+// Helper function to generate title from job config
+const generateTitleFromConfig = (config: VideoConfig | null): string => {
+  if (!config) return "Video";
+
+  const mode = config.mode === "single" ? "Single Host" : "Host & Guest";
+  return `${mode} Video (${config.duration}s)`;
+};
 
 export const useVideoGeneration = (
   config: VideoConfig | null,
@@ -155,6 +169,9 @@ export const useVideoGeneration = (
       if (jobId) {
         removeGeneration(jobId);
 
+        // Clean up job config from localStorage
+        removeJobConfig(jobId);
+
         // Remove from pending jobs localStorage since it failed
         try {
           const pendingJobs = JSON.parse(
@@ -273,16 +290,15 @@ export const useVideoGeneration = (
         } else if (status.status === "completed") {
           console.log("🎉 Video generation completed! Status:", status);
 
-          // Show success toast immediately
+          // Show success toast with job-specific config
           const shownCompletions = JSON.parse(
             sessionStorage.getItem("shownCompletions") || "[]"
           );
 
           if (!shownCompletions.includes(jobId)) {
-            const title =
-              currentConfigWithScripts?.mode === "single"
-                ? `Single Host Video (${currentConfigWithScripts.duration}s)`
-                : `Host & Guest Video (${currentConfigWithScripts?.duration}s)`;
+            // Get config from localStorage for this specific job
+            const jobConfig = getJobConfig(jobId);
+            const title = generateTitleFromConfig(jobConfig);
 
             toast({
               title: "Video Generation Complete! 🎉",
@@ -297,7 +313,7 @@ export const useVideoGeneration = (
             );
 
             console.log(
-              `✅ Job ${jobId} completed - showing success toast from individual polling`
+              `✅ Job ${jobId} completed - showing success toast with job-specific config`
             );
           }
 
@@ -305,6 +321,9 @@ export const useVideoGeneration = (
 
           // Remove from global progress tracker
           removeGeneration(jobId);
+
+          // Clean up job config from localStorage
+          removeJobConfig(jobId);
 
           // Remove from pending jobs localStorage since it's completed
           try {
@@ -484,6 +503,9 @@ export const useVideoGeneration = (
 
         const result = await response.json();
 
+        // Save job config to localStorage with jobId as key
+        saveJobConfig(result.jobId, updatedConfig);
+
         // invalidate credit queries immediately to reflect the deducted credits
         await utils.users.checkCredits.invalidate();
         await utils.users.getCreditBalance.invalidate();
@@ -537,6 +559,8 @@ export const useVideoGeneration = (
     // Remove from global progress tracker if there's an active job
     if (currentJobId) {
       removeGeneration(currentJobId);
+      // Clean up job config from localStorage
+      removeJobConfig(currentJobId);
     }
 
     setIsGenerating(false);
@@ -566,6 +590,11 @@ export const useVideoGeneration = (
     [pollJobStatus]
   );
 
+  // Helper function to get config for any job ID (useful for UI components)
+  const getConfigForJob = useCallback((jobId: string) => {
+    return getJobConfig(jobId);
+  }, []);
+
   return {
     // State
     isGenerating,
@@ -583,5 +612,6 @@ export const useVideoGeneration = (
 
     // Utils
     utils,
+    getConfigForJob,
   };
 };
