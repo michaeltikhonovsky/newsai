@@ -98,8 +98,11 @@ export const useVideoGeneration = (
       if (!hasRefunded && config) {
         setHasRefunded(true);
 
-        // For network errors, try the cleanup API as a fallback
-        if (errorMessage.includes("Connection failed")) {
+        // For network errors and service timeouts, try the cleanup API as a fallback
+        if (
+          errorMessage.includes("Connection failed") ||
+          errorMessage.includes("Sync.so request timed out")
+        ) {
           try {
             const response = await fetch("/api/cleanup-stale-jobs", {
               method: "POST",
