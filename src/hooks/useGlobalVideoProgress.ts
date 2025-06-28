@@ -311,7 +311,7 @@ export const useGlobalVideoProgress = () => {
             return Math.min(95, Math.max(15, parseInt(percentMatch[1])));
           }
 
-          // Calculate progress based on current step (11 total steps)
+          // Calculate progress based on current step (7 total steps)
           const progressLower = progress.toLowerCase();
           let stepProgress = 15; // Base progress for processing
 
@@ -320,23 +320,23 @@ export const useGlobalVideoProgress = () => {
             progressLower.includes("generating audio") ||
             progressLower.includes("processing audio generation")
           ) {
-            stepProgress = 20; // Step 1/11
+            stepProgress = 20; // Step 1/7
           } else if (
             progressLower.includes("✅ audio generated for") ||
             progressLower.includes("audio generated for") ||
             progressLower.includes("audio generated successfully")
           ) {
-            stepProgress = 25; // Step 1.5/11 - Audio generation completed, moving to video
+            stepProgress = 25; // Step 1.5/7 - Audio generation completed, moving to video
           } else if (
             progressLower.includes("processing video") ||
             progressLower.includes("concatenating")
           ) {
-            stepProgress = 30; // Step 2/11
+            stepProgress = 30; // Step 2/7
           } else if (
             progressLower.includes("adding background music") ||
             progressLower.includes("background music")
           ) {
-            stepProgress = 40; // Step 3/11
+            stepProgress = 40; // Step 3/7
           } else if (
             (progressLower.includes("uploading") &&
               progressLower.includes("lipsync")) ||
@@ -346,40 +346,54 @@ export const useGlobalVideoProgress = () => {
             progressLower.includes("upload for lipsync") ||
             progressLower.includes("uploading video and audio for lipsync")
           ) {
-            stepProgress = 50; // Step 4/11
+            stepProgress = 50; // Step 4/7
           } else if (
             progressLower.includes("lipsync processing") ||
             progressLower.includes("processing lipsync") ||
             progressLower.includes("starting lipsync")
           ) {
-            stepProgress = 60; // Step 5/11
+            stepProgress = 60; // Step 5/7
           } else if (
             progressLower.includes("downloading result") ||
             progressLower.includes("lipsync processing completed") ||
             progressLower.includes("downloading lipsync result")
           ) {
-            stepProgress = 70; // Step 6/11
+            stepProgress = 70; // Step 6/7
           } else if (
+            // All finalization activities map to the final step (Step 7/7)
             progressLower.includes("finalizing") ||
-            progressLower.includes("video finalized")
-          ) {
-            stepProgress = 75; // Step 7/11
-          } else if (
+            progressLower.includes("video finalized") ||
             progressLower.includes("adding outro") ||
-            progressLower.includes("outro added")
-          ) {
-            stepProgress = 80; // Step 8/11
-          } else if (
+            progressLower.includes("outro added") ||
             progressLower.includes("saving locally") ||
-            progressLower.includes("video saved locally")
-          ) {
-            stepProgress = 85; // Step 9/11
-          } else if (
+            progressLower.includes("video saved locally") ||
             progressLower.includes("uploading to s3") ||
             progressLower.includes("upload progress") ||
-            progressLower.includes("uploading final video")
+            progressLower.includes("uploading final video") ||
+            progressLower.includes("video processing completed successfully") ||
+            progressLower.includes("processing completed successfully")
           ) {
-            stepProgress = 90; // Step 10/11
+            // Progressive percentage within the finalization step
+            if (
+              progressLower.includes("finalizing") ||
+              progressLower.includes("adding outro")
+            ) {
+              stepProgress = 75; // Early finalization
+            } else if (
+              progressLower.includes("outro added") ||
+              progressLower.includes("saving locally")
+            ) {
+              stepProgress = 85; // Mid finalization
+            } else if (
+              progressLower.includes("uploading to s3") ||
+              progressLower.includes("uploading final video")
+            ) {
+              stepProgress = 90; // Late finalization
+            } else if (progressLower.includes("completed successfully")) {
+              stepProgress = 95; // Nearly complete
+            } else {
+              stepProgress = 80; // Default finalization progress
+            }
           }
 
           return Math.min(95, stepProgress);

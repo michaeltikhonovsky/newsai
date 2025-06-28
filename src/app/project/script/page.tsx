@@ -44,11 +44,7 @@ const getProcessingSteps = (
     { key: "upload", label: "Upload for Lipsync" },
     { key: "lipsync", label: "Lipsync Processing" },
     { key: "lipsync_download", label: "Download Lipsync Result" },
-    { key: "finalize", label: "Finalize Video" },
-    { key: "outro", label: "Add Outro" },
-    { key: "save_local", label: "Save Video Locally" },
-    { key: "upload_s3", label: "Upload to Cloud" },
-    { key: "complete", label: "Processing Complete" },
+    { key: "finalize", label: "Finalizing Video" },
   ];
 
   // For multi-character mode, use single audio step
@@ -60,11 +56,7 @@ const getProcessingSteps = (
       { key: "upload", label: "Upload for Lipsync" },
       { key: "lipsync", label: "Lipsync Processing" },
       { key: "lipsync_download", label: "Download Lipsync Result" },
-      { key: "finalize", label: "Finalize Video" },
-      { key: "outro", label: "Add Outro" },
-      { key: "save_local", label: "Save Video Locally" },
-      { key: "upload_s3", label: "Upload to Cloud" },
-      { key: "complete", label: "Processing Complete" },
+      { key: "finalize", label: "Finalizing Video" },
     ];
   }
 
@@ -80,40 +72,19 @@ const getProcessingSteps = (
   // Check for specific progress indicators to determine current step
   // Order matters - check more specific patterns first to avoid false matches
 
-  // Completion check first (most specific)
+  // All finalization activities (outro, save, upload, completion) map to finalize step
   if (
     progress.includes("video processing completed successfully") ||
     progress.includes("processing completed successfully") ||
     (progress.includes("completed successfully") &&
-      !progress.includes("outro") &&
-      !progress.includes("finalized"))
-  ) {
-    currentStepIndex = 10; // complete
-  }
-  // Final S3 upload (very specific to avoid confusion with early uploads)
-  else if (
+      !progress.includes("lipsync")) ||
     progress.includes("uploading final video to s3") ||
     (progress.includes("upload progress") && !progress.includes("lipsync")) ||
-    progress.includes("uploading final video to s3 completed")
-  ) {
-    currentStepIndex = 9; // upload_s3
-  }
-  // Local save
-  else if (
+    progress.includes("uploading final video to s3 completed") ||
     progress.includes("video saved locally") ||
-    progress.includes("saved locally")
-  ) {
-    currentStepIndex = 8; // save_local
-  }
-  // Outro processing
-  else if (
+    progress.includes("saved locally") ||
     progress.includes("adding outro") ||
-    progress.includes("outro added")
-  ) {
-    currentStepIndex = 7; // outro
-  }
-  // Video finalization
-  else if (
+    progress.includes("outro added") ||
     progress.includes("finalizing video") ||
     progress.includes("video finalized")
   ) {
@@ -166,14 +137,14 @@ const getProcessingSteps = (
     progress.includes("processing video") ||
     progress.includes("video footage")
   ) {
-    currentStepIndex = 1; // video for multi-character mode
+    currentStepIndex = 1; // video for single character mode, or concatenate for multi-character mode
   }
   // All audio completed transition point
   else if (
     progress.includes("✅ all audio generation completed") ||
     progress.includes("all audio generation completed in parallel")
   ) {
-    currentStepIndex = 1; // move to video step
+    currentStepIndex = 1; // move to video/concatenate step
   }
   // Audio generation
   else if (
@@ -191,14 +162,6 @@ const getProcessingSteps = (
         progress.includes("guest")))
   ) {
     currentStepIndex = 0; // audio
-  }
-
-  // For single character mode, adjust step indices
-  if (config?.mode === "single") {
-    if (currentStepIndex === 1 && progress.includes("concatenat")) {
-      // Skip concatenation for single mode
-      currentStepIndex = 2; // Move to music
-    }
   }
 
   // Calculate which steps are completed
@@ -655,8 +618,8 @@ function ProjectScriptPageContent() {
                     <p className="text-sm text-gray-400 bg-blue-500/10 border border-blue-400/30 rounded-lg px-4 py-3 mb-3">
                       💡 Generation will continue in the background. Feel free
                       to leave this page and come back later as the entire audio
-                      generation and lipsync process can sometimes take up to 10
-                      minutes.
+                      generation and lipsync process can sometimes take up to
+                      10-15 minutes.
                     </p>
                   </motion.div>
                 )}
