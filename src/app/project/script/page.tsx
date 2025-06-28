@@ -20,7 +20,7 @@ import type {
   JobStatus,
 } from "@/types/video";
 import { hosts, guests, getHostName, getGuestName } from "@/lib/characters";
-import { getJobConfig } from "@/lib/utils";
+import { getJobConfig, CHARACTER_LIMITS } from "@/lib/utils";
 import {
   ArrowLeft,
   Settings,
@@ -30,11 +30,6 @@ import {
   Coins,
   Music,
 } from "lucide-react";
-
-const CHARACTER_LIMITS = {
-  30: 550,
-  60: 1100,
-};
 
 const getProcessingSteps = (
   currentProgress?: string,

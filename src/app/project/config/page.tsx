@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Navbar } from "@/components/Navbar";
 import { hosts, guests } from "@/lib/characters";
+import { CHARACTER_LIMITS } from "@/lib/utils";
 import type { Character } from "@/types/video";
 import { ArrowLeft, Check, Users, User, Clock, Music } from "lucide-react";
 
@@ -376,10 +377,10 @@ export default function ProjectConfigPage() {
                               : "text-gray-300"
                           }`}
                         >
-                          30 Seconds (10 credits)
+                          Up to 30 Seconds (10 credits)
                         </h3>
                         <p className="text-sm text-gray-500">
-                          Quick news bite (~400 characters)
+                          Quick news bite ({CHARACTER_LIMITS[30]} characters)
                         </p>
                       </div>
                       {duration === 30 && (
@@ -419,10 +420,11 @@ export default function ProjectConfigPage() {
                               : "text-gray-300"
                           }`}
                         >
-                          60 Seconds (20 credits)
+                          Up to 60 Seconds (20 credits)
                         </h3>
                         <p className="text-sm text-gray-500">
-                          Detailed news segment (~800 characters)
+                          Detailed news segment ({CHARACTER_LIMITS[60]}{" "}
+                          characters)
                         </p>
                       </div>
                       {duration === 60 && (

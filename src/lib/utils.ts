@@ -6,6 +6,11 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export const CHARACTER_LIMITS = {
+  30: 550,
+  60: 1100,
+};
+
 // Helper functions for job config localStorage management
 export const getJobConfig = (jobId: string): VideoConfig | null => {
   try {
