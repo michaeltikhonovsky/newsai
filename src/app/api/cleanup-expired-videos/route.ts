@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/server/db";
 import { recentVideos } from "@/server/db/schema";
-import { sql } from "drizzle-orm";
+import { lt } from "drizzle-orm";
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     // Delete all videos older than 24 hours (for all users)
     const deletedVideos = await db
       .delete(recentVideos)
-      .where(sql`${recentVideos.createdAt} < ${twentyFourHoursAgo}`)
+      .where(lt(recentVideos.createdAt, twentyFourHoursAgo))
       .returning({ id: recentVideos.id, userId: recentVideos.userId });
 
     const executionTime = Date.now() - startTime;
