@@ -2,7 +2,7 @@
 
 **AI-powered news video generation platform** that creates realistic news broadcasts with advanced lip-sync technology.
 
-**Live Site:** [newsai](https://newsai.wtf)
+**Live Site:** [NewsAI](https://newsai.wtf)
 
 ## What is NewsAI?
 
