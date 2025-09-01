@@ -1,36 +1,62 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# NewsAI
 
-## Getting Started
+🎥 **AI-powered news video generation platform** that creates realistic news broadcasts with advanced lip-sync technology.
 
-First, run the development server:
+**🌐 Live Demo:** [newsai](https://newsai.wtf)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## What is NewsAI?
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+NewsAI transforms written scripts into professional-quality news videos featuring AI anchors. Choose from famous news personalities, write your script, and generate broadcast-ready content in minutes.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Key Features
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **🎭 Realistic AI Anchors**: Choose from well-known news personalities like Anderson Cooper, Lester Holt, and more
+- **🗣️ Advanced Lip-Sync**: Perfect audio-visual synchronization using cutting-edge AI technology
+- **📺 Multiple Formats**: Single-host presentations or host-guest interview styles
+- **⚡ Fast Generation**: Create 30-60 second videos in minutes
+- **💳 Credit-Based Pricing**: Pay only for what you generate (10-20 credits per video)
 
-## Learn More
+## How It Works
 
-To learn more about Next.js, take a look at the following resources:
+### 1. Configure Your Video
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+![Configuration](public/images/config.png)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Select your anchor, choose video length, and pick your format (single host or host + guest interview).
 
-## Deploy on Vercel
+### 2. Write Your Script
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Input your news script with character limits and real-time validation to ensure optimal video quality.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### 3. Generate & Track Progress
+
+![Generation Status](public/images/generation_status.png)
+
+Watch real-time progress as AI processes your script into a professional news broadcast.
+
+### 4. Get Notified
+
+![Status Notifications](public/images/status_notifications.png)
+
+Receive instant notifications when your video is ready, with automatic credit refunds if generation fails.
+
+### 5. Purchase Complete
+
+![Purchase Complete](public/images/purchase_complete.png)
+
+Seamless payment processing with Stripe integration for credits and subscriptions.
+
+## Technology Stack
+
+- **Frontend**: Next.js, TypeScript, Tailwind CSS
+- **Backend**: tRPC, PostgreSQL, Drizzle ORM
+- **Authentication**: Clerk
+- **Payments**: Stripe
+- **AI Integration**: External video generation APIs
+- **Deployment**: Vercel
+
+## Features Showcase
+
+![Home Page](public/images/home_page.png)
+
+_Clean, modern interface with video preview and feature highlights_
