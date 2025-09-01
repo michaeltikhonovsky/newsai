@@ -1,8 +1,8 @@
 # NewsAI
 
-🎥 **AI-powered news video generation platform** that creates realistic news broadcasts with advanced lip-sync technology.
+**AI-powered news video generation platform** that creates realistic news broadcasts with advanced lip-sync technology.
 
-**🌐 Live Demo:** [newsai](https://newsai.wtf)
+**Live Site:** [newsai](https://newsai.wtf)
 
 ## What is NewsAI?
 
@@ -10,11 +10,11 @@ NewsAI transforms written scripts into professional-quality news videos featurin
 
 ### Key Features
 
-- **🎭 Realistic AI Anchors**: Choose from well-known news personalities like Anderson Cooper, Lester Holt, and more
-- **🗣️ Advanced Lip-Sync**: Perfect audio-visual synchronization using cutting-edge AI technology
-- **📺 Multiple Formats**: Single-host presentations or host-guest interview styles
-- **⚡ Fast Generation**: Create 30-60 second videos in minutes
-- **💳 Credit-Based Pricing**: Pay only for what you generate (10-20 credits per video)
+- **News Anchors**: Choose from well-known news personalities like Anderson Cooper, Lester Holt, and more
+- **Advanced Lip-Sync**: Perfect audio-visual synchronization using cutting-edge AI technology
+- **Multiple Formats**: Single-host presentations or host-guest interview styles
+- **Fast Generation**: Create 30-60 second videos in 10-15 minutes
+- **Credit-Based Pricing**: Pay only for what you generate (10-20 credits per video)
 
 ## How It Works
 
@@ -58,5 +58,3 @@ Seamless payment processing with Stripe integration for credits and subscription
 ## Features Showcase
 
 ![Home Page](public/images/home_page.png)
-
-_Clean, modern interface with video preview and feature highlights_
